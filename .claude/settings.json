@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__exa__web_search_exa",
+      "Bash(uvx --from youtube-transcript-api youtube_transcript_api 'https://www.youtube.com/watch?v=ztsOwk1zB3o' --languages en)",
+      "Bash(uvx --from youtube-transcript-api youtube_transcript_api ztsOwk1zB3o --languages en)",
+      "WebSearch"
+    ],
+    "additionalDirectories": [
+      "/home/jagrat/dev/better-ai",
+      "/tmp/size-test"
+    ]
+  }
+}

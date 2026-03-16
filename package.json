@@ -1,0 +1,29 @@
+{
+  "name": "better-ai",
+  "version": "0.1.0",
+  "description": "Auto-install MCP servers and agent skills based on your project's stack",
+  "type": "module",
+  "bin": {
+    "better-ai": "dist/cli.mjs"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "bun build src/cli.ts --outfile dist/cli.mjs --target node",
+    "dev": "bun run src/cli.ts"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.1.0",
+    "@trpc/server": "^11.13.4",
+    "execa": "^9.6.1",
+    "picocolors": "^1.1.1",
+    "trpc-cli": "^0.13.0",
+    "zod": "^4.3.6"
+  }
+}
