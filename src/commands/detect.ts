@@ -1,3 +1,5 @@
+import { outro, log } from "@clack/prompts"
+import pc from "picocolors"
 import { detectDeps } from "../detector"
 import { matchMcpServers, matchSkills } from "../matcher"
 import { theme } from "../utils/theme"
@@ -21,26 +23,26 @@ export async function detect({ project, json }: DetectInput) {
     return
   }
 
-  console.error(theme.info(`Found ${deps.size} dependencies in ${project}`))
-  console.error("")
+
+  log.info(`Found ${pc.bold(deps.size.toString())} dependencies in ${pc.dim(project)}`)
 
   if (servers.length > 0) {
-    console.log(theme.heading("MCP Servers"))
+    log.success(pc.bold("MCP Servers"))
     for (const s of servers) {
-      console.log(`  ${theme.bullet} ${s.label} ${theme.hint(`(${s.name})`)}`)
+      log.message(`  ${theme.bullet} ${s.label} ${theme.hint(`(${s.name})`)}`)
     }
-    console.log("")
   }
 
   if (matched.length > 0) {
-    console.log(theme.heading("Skills"))
+    log.success(pc.bold("Skills"))
     for (const s of matched) {
-      console.log(`  ${theme.bullet} ${s.label} ${theme.hint(`— ${s.resolvedSkills.length} skills`)}`)
+      log.message(`  ${theme.bullet} ${s.label} ${theme.hint(`— ${s.resolvedSkills.length} skills`)}`)
     }
-    console.log("")
   }
 
   if (servers.length === 0 && matched.length === 0) {
-    console.error(theme.warn("No matching MCP servers or skills found for this project."))
+    log.warn("No matching MCP servers or skills found for this project.")
   }
+
+  outro(pc.dim("Done"))
 }
