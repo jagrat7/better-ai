@@ -1,9 +1,9 @@
 import { isCancel, outro } from "@clack/prompts"
-import pc from "picocolors"
+import { theme } from "./theme"
 
 export function handleCancel<T>(value: T | symbol): T {
   if (isCancel(value)) {
-    outro(pc.red("Cancelled"))
+    outro(theme.cancelled("Cancelled"))
     process.exit(0)
   }
   return value

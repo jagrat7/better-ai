@@ -11,3 +11,5 @@ dist
 skills-lock.json
 
 .env
+
+/dummy-project
