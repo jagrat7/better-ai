@@ -2,3 +2,10 @@ node_modules
 dist
 *.mjs
 /bt3-cli
+
+/.claude
+/.agent
+/.agents
+/.windsurf
+
+skills-lock.json
