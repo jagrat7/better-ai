@@ -1,8 +1,10 @@
 #!/usr/bin/env node
+import pkg from "../package.json"
 import { initTRPC } from "@trpc/server"
 import { createCli, type TrpcCliMeta } from "trpc-cli"
 import { z } from "zod"
-import { intro, outro, text, isCancel } from "@clack/prompts"
+import { intro, outro, text } from "@clack/prompts"
+import { handleCancel } from "./utils/prompts"
 import { $ } from "execa"
 import pc from "picocolors"
 
@@ -22,15 +24,10 @@ const router = t.router({
 
       let name = input.name
       if (!name) {
-        const result = await text({
+        name = handleCancel(await text({
           message: "What is your name?",
           placeholder: "world",
-        })
-        if (isCancel(result)) {
-          outro(pc.red("Cancelled"))
-          process.exit(0)
-        }
-        name = result || "world"
+        })) || "world"
       }
 
       // picocolors
@@ -45,10 +42,15 @@ const router = t.router({
 
       outro(pc.green("Done!"))
     }),
+  bye: t.procedure
+    .meta({ description: "Say bye" })
+    .query(async () => {
+      outro(pc.magenta("Bye looser!"))
+    }),
 })
 
 createCli({
   router,
-  name: "better-ai",
-  version: "0.1.0",
+  name: pkg.name,
+  version: pkg.version,
 }).run()
