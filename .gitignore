@@ -13,3 +13,5 @@ skills-lock.json
 .env
 
 /dummy-project
+# CocoIndex Code (ccc)
+/.cocoindex_code

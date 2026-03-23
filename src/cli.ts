@@ -4,7 +4,8 @@ import { initTRPC } from "@trpc/server"
 import { createCli, type TrpcCliMeta } from "trpc-cli"
 import { z } from "zod"
 import { resolve } from "path"
-import { detect } from "./commands/detect"
+import { detect } from "./services/detector/detect"
+import { install } from "./services/install/install"
 import { renderHeader } from "./components/header"
 
 const t = initTRPC.meta<TrpcCliMeta>().create()
@@ -22,7 +23,7 @@ const procedure = t.procedure.use(async ({ getRawInput, next }) => {
 
 const router = t.router({
   detect: procedure
-    .meta({ description: "Detect project stack and matching MCP servers + skills", default: true })
+    .meta({ description: "Detect project stack and matching MCP servers + skills"})
     .input(
       z.object({
         project: z.string().optional().describe("Path to project directory"),
@@ -33,6 +34,22 @@ const router = t.router({
       await detect({
         project: resolve(input.project ?? "."),
         json: input.json,
+      })
+    }),
+  install: procedure
+    .meta({ description: "Install selected MCP servers and skills", default: true })
+    .input(
+      z.object({
+        project: z.string().optional().describe("Path to project directory"),
+        json: z.boolean().optional().describe("Output as JSON"),
+        auto: z.boolean().optional().describe("Auto-approve installation"),
+      })
+    )
+    .mutation(async ({ input }) => {
+      await install({
+        project: resolve(input.project ?? "."),
+        json: input.json,
+        auto: input.auto,
       })
     }),
 })
