@@ -43,6 +43,8 @@ const router = t.router({
         project: z.string().optional().describe("Path to project directory"),
         json: z.boolean().optional().describe("Output as JSON"),
         auto: z.boolean().optional().describe("Auto-approve installation"),
+        skills: z.boolean().optional().describe("Include only skills in installation"),
+        mcp: z.boolean().optional().describe("Include only MCP servers in installation"),
       })
     )
     .mutation(async ({ input }) => {
@@ -50,6 +52,8 @@ const router = t.router({
         project: resolve(input.project ?? "."),
         json: input.json,
         auto: input.auto,
+        skills: input.skills,
+        mcp: input.mcp,
       })
     }),
 })

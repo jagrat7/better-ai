@@ -7,11 +7,14 @@ import { theme } from "../../components/theme"
 
 export type InstallInput = DetectInput & {
   auto?: boolean
+  skills?: boolean
+  mcp?: boolean
 }
 
 export type InstallResult = DetectResult & {
   selectedServers: DetectResult["servers"]
   selectedSkills: DetectResult["matched"]
+  scope?: "all" | "skills" | "mcp"
 }
 
 export type InstallJson = DetectJson & {
@@ -20,24 +23,33 @@ export type InstallJson = DetectJson & {
 }
 
 export class InstallService implements ServiceI<InstallInput, InstallResult, InstallJson> {
-  async run({ auto, ...input }: InstallInput): Promise<InstallResult> {
+  async run({ auto, skills, mcp, ...input }: InstallInput): Promise<InstallResult> {
     const detected = await detectService.run(input)
+    const availableServers = skills && !mcp ? [] : detected.servers
+    const availableSkills = mcp && !skills ? [] : detected.matched
+    const scope = skills && !mcp ? "skills" : mcp && !skills ? "mcp" : "all"
 
     if (auto) {
       return {
         ...detected,
-        selectedServers: detected.servers,
-        selectedSkills: detected.matched,
+        selectedServers: availableServers,
+        selectedSkills: availableSkills,
+        scope,
       }
     }
 
-    const selection = await this.promptForSelection(detected)
+    const selection = await this.promptForSelection({
+      ...detected,
+      servers: availableServers,
+      matched: availableSkills,
+    })
 
     if (!selection) {
       return {
         ...detected,
         selectedServers: [],
         selectedSkills: [],
+        scope,
       }
     }
 
@@ -45,6 +57,7 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
       ...detected,
       selectedServers: selection.selectedServers,
       selectedSkills: selection.selectedSkills,
+      scope,
     }
   }
 
@@ -84,7 +97,12 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
     }
 
     if (result.selectedServers.length === 0 && result.selectedSkills.length === 0) {
-      log.warn("No MCP servers or skills selected.")
+      const message = result.scope === "skills"
+        ? "No skills selected."
+        : result.scope === "mcp"
+          ? "No MCP servers selected."
+          : "No MCP servers or skills selected."
+      log.warn(message)
     }
 
     outro(pc.dim("Done"))
