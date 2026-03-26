@@ -1,7 +1,7 @@
 {
   "name": "better-ai",
   "version": "0.1.0",
-  "description": "Auto-install MCP servers and agent skills based on your project's stack",
+  "description": "Install MCP servers and agent skills based on your project's stack",
   "type": "module",
   "bin": {
     "better-ai": "dist/cli.mjs"

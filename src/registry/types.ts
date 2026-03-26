@@ -14,6 +14,11 @@ export type McpServerEntry = {
   when: WhenCondition
 }
 
+export type AgentOption = {
+  value: string
+  label: string
+}
+
 export type SkillEntry = {
   source: string
   label: string

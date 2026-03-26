@@ -1,13 +1,15 @@
 import { log, multiselect, outro } from "@clack/prompts"
 import pc from "picocolors"
 import { detectService, type DetectInput, type DetectJson, type DetectResult } from "../detector/detect"
-import { executeInstallations, MCP_AGENTS, SKILL_AGENTS, DEFAULT_MCP_AGENTS, DEFAULT_SKILL_AGENTS } from "./install-utils"
+import { executeInstallations } from "./install-utils"
+import { mcpAgents, skillAgents, defaultMcpAgents, defaultSkillAgents } from "../../registry/agents"
 import { promptWithCancel } from "../utils"
 import type { ServiceI } from "../service.inerface"
 import { theme } from "../../components/theme"
 
 export type InstallInput = DetectInput & {
   auto?: boolean
+  agent?: string[]
   skills?: boolean
   mcp?: boolean
 }
@@ -26,28 +28,43 @@ export type InstallJson = DetectJson & {
 }
 
 export class InstallService implements ServiceI<InstallInput, InstallResult, InstallJson> {
-  async run({ auto, skills, mcp, ...input }: InstallInput): Promise<InstallResult> {
+  async run({ auto, agent, skills, mcp, ...input }: InstallInput): Promise<InstallResult> {
     const detected = await detectService.run(input)
     const availableServers = skills && !mcp ? [] : detected.servers
     const availableSkills = mcp && !skills ? [] : detected.matched
     const scope = skills && !mcp ? "skills" : mcp && !skills ? "mcp" : "all"
 
+    const resolvedAgents = agent
+      ? await this.resolveAgents(agent, {
+          hasServers: availableServers.length > 0,
+          hasSkills: availableSkills.length > 0,
+        })
+      : null
+
     if (auto) {
+      if (!resolvedAgents) {
+        log.error("--auto requires --agent to be specified")
+        outro(pc.dim("Done"))
+        process.exit(1)
+      }
       return {
         ...detected,
         selectedServers: availableServers,
         selectedSkills: availableSkills,
-        selectedMcpAgents: DEFAULT_MCP_AGENTS,
-        selectedSkillAgents: DEFAULT_SKILL_AGENTS,
+        selectedMcpAgents: resolvedAgents.mcp,
+        selectedSkillAgents: resolvedAgents.skill,
         scope,
       }
     }
 
-    const selection = await this.promptForSelection({
-      ...detected,
-      servers: availableServers,
-      matched: availableSkills,
-    })
+    const selection = await this.promptForSelection(
+      {
+        ...detected,
+        servers: availableServers,
+        matched: availableSkills,
+      },
+      resolvedAgents,
+    )
 
     if (!selection) {
       return {
@@ -65,6 +82,61 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
       ...selection,
       scope,
     }
+  }
+
+  private async resolveAgents(
+    agents: string[],
+    { hasServers, hasSkills }: { hasServers: boolean, hasSkills: boolean },
+  ): Promise<{ mcp: string[], skill: string[] }> {
+    const mcpValues = new Set(mcpAgents.map((a) => a.value))
+    const skillValues = new Set(skillAgents.map((a) => a.value))
+
+    const mcp: string[] = []
+    const skill: string[] = []
+    const unsupportedMcp: string[] = []
+    const unsupportedSkill: string[] = []
+
+    for (const agent of agents) {
+      const inMcp = mcpValues.has(agent)
+      const inSkill = skillValues.has(agent)
+
+      if (inMcp) mcp.push(agent)
+      if (inSkill) skill.push(agent)
+
+      if (!inMcp && !inSkill) {
+        log.warn(`Agent ${pc.bold(agent)} is not supported by MCP or skills CLI`)
+      } else if (!inMcp) {
+        unsupportedMcp.push(agent)
+        log.warn(`Agent ${pc.bold(agent)} is not supported by MCP CLI (skills only)`)
+      } else if (!inSkill) {
+        unsupportedSkill.push(agent)
+        log.warn(`Agent ${pc.bold(agent)} is not supported by skills CLI (MCP only)`)
+      }
+    }
+
+    if (mcp.length === 0 && hasServers) {
+      log.info("None of the specified agents support MCP — select MCP agents:")
+      const picked = await promptWithCancel(() => multiselect({
+        message: "Select agents to install MCP servers to",
+        options: mcpAgents,
+        initialValues: defaultMcpAgents,
+        required: false,
+      }))
+      if (picked) mcp.push(...picked)
+    }
+
+    if (skill.length === 0 && hasSkills) {
+      log.info("None of the specified agents support skills — select skill agents:")
+      const picked = await promptWithCancel(() => multiselect({
+        message: "Select agents to install skills to",
+        options: skillAgents,
+        initialValues: defaultSkillAgents,
+        required: false,
+      }))
+      if (picked) skill.push(...picked)
+    }
+
+    return { mcp, skill }
   }
 
   json(result: InstallResult): InstallJson {
@@ -140,7 +212,10 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
     outro(pc.dim("Done"))
   }
 
-  private async promptForSelection(result: DetectResult): Promise<Pick<InstallResult, "selectedServers" | "selectedSkills" | "selectedMcpAgents" | "selectedSkillAgents"> | null> {
+  private async promptForSelection(
+    result: DetectResult,
+    preResolvedAgents: { mcp: string[], skill: string[] } | null,
+  ): Promise<Pick<InstallResult, "selectedServers" | "selectedSkills" | "selectedMcpAgents" | "selectedSkillAgents"> | null> {
     const selectedServerKeys = result.servers.length > 0
       ? await promptWithCancel(() => multiselect({
           message: "Select MCP servers to install",
@@ -158,14 +233,15 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
       return null
     }
 
-    const selectedMcpAgents = selectedServerKeys.length > 0
-      ? await promptWithCancel(() => multiselect({
-          message: "Select agents to install MCP servers to",
-          options: MCP_AGENTS,
-          initialValues: DEFAULT_MCP_AGENTS,
-          required: false,
-        }))
-      : []
+    const selectedMcpAgents = preResolvedAgents?.mcp
+      ?? (selectedServerKeys.length > 0
+        ? await promptWithCancel(() => multiselect({
+            message: "Select agents to install MCP servers to",
+            options: mcpAgents,
+            initialValues: defaultMcpAgents,
+            required: false,
+          }))
+        : [])
 
     if (!selectedMcpAgents) {
       return null
@@ -192,14 +268,15 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
       return null
     }
 
-    const selectedSkillAgents = selectedSkillKeys.length > 0
-      ? await promptWithCancel(() => multiselect({
-          message: "Select agents to install skills to",
-          options: SKILL_AGENTS,
-          initialValues: DEFAULT_SKILL_AGENTS,
-          required: false,
-        }))
-      : []
+    const selectedSkillAgents = preResolvedAgents?.skill
+      ?? (selectedSkillKeys.length > 0
+        ? await promptWithCancel(() => multiselect({
+            message: "Select agents to install skills to",
+            options: skillAgents,
+            initialValues: defaultSkillAgents,
+            required: false,
+          }))
+        : [])
 
     if (!selectedSkillAgents) {
       return null
