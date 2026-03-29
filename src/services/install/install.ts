@@ -1,4 +1,4 @@
-import { log, multiselect, outro } from "@clack/prompts"
+import { log, multiselect, outro, spinner } from "@clack/prompts"
 import pc from "picocolors"
 import { detectService, type DetectInput, type DetectJson, type DetectResult } from "../detector/detect"
 import { executeInstallations } from "./install-utils"
@@ -199,7 +199,8 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
       return
     }
 
-    log.info("Installing selected MCP servers and skills...")
+    const s = spinner()
+    s.start("Installing selected MCP servers and skills...")
 
     const execution = await executeInstallations({
       project: result.project,
@@ -208,6 +209,8 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
       mcpAgents: result.selectedMcpAgents,
       skillAgents: result.selectedSkillAgents,
     })
+
+    s.stop("Installation complete")
 
     log.info(`Using ${pc.bold(execution.packageManager)} to run installer packages`)
 
