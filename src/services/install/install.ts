@@ -249,7 +249,7 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
           message: "Select MCP servers to install",
           options: result.servers.map((server) => ({
             value: server.key,
-            label: `${server.label} (${server.name})`,
+            label: server.label,
             hint: server.name,
           })),
           initialValues: result.servers.map((server) => server.key),
