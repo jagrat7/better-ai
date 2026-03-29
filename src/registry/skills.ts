@@ -1,14 +1,11 @@
 import type { SkillEntry } from "./types"
 
+
 export const skills: SkillEntry[] = [
   {
     source: "vercel-labs/agent-skills",
     label: "Vercel Agent Skills",
-    skills: [
-      "web-design-guidelines",
-      "vercel-composition-patterns",
-      "vercel-react-best-practices",
-    ],
+    skills: ["web-design-guidelines", "vercel-composition-patterns", "vercel-react-best-practices", "deploy-to-vercel", "vercel-cli-with-tokens", "vercel-deploy"],
     conditionalSkills: [
       {
         when: { deps: ["expo", "react-native"] },
@@ -20,7 +17,7 @@ export const skills: SkillEntry[] = [
   {
     source: "vercel/ai",
     label: "Vercel AI SDK",
-    skills: ["ai-sdk"],
+    skills: ["ai-sdk", "develop-ai-functions-example", "capture-api-response-test-fixture", "list-npm-package-content"],
     when: { deps: ["ai"] },
   },
   {
@@ -38,13 +35,13 @@ export const skills: SkillEntry[] = [
   {
     source: "vercel-labs/next-skills",
     label: "Next.js Best Practices",
-    skills: ["next-best-practices", "next-cache-components"],
+    skills: ["next-best-practices", "next-cache-components", "next-upgrade"],
     when: { deps: ["next"] },
   },
   {
     source: "nuxt/ui",
     label: "Nuxt UI",
-    skills: ["nuxt-ui"],
+    skills: ["nuxt-ui", "contributing"],
     when: { deps: ["nuxt", "@nuxt/ui"] },
   },
   {
@@ -62,20 +59,13 @@ export const skills: SkillEntry[] = [
   {
     source: "better-auth/skills",
     label: "Better Auth",
-    skills: ["better-auth-best-practices"],
+    skills: ["better-auth-best-practices", "better-auth-security-best-practices", "create-auth-skill", "email-and-password-best-practices", "organization-best-practices", "two-factor-authentication-best-practices"],
     when: { deps: ["better-auth"] },
   },
   {
     source: "clerk/skills",
     label: "Clerk",
-    skills: [
-      "clerk",
-      "clerk-setup",
-      "clerk-custom-ui",
-      "clerk-webhooks",
-      "clerk-testing",
-      "clerk-orgs",
-    ],
+    skills: ["clerk", "clerk-setup", "clerk-custom-ui", "clerk-webhooks", "clerk-testing", "clerk-orgs", "clerk-backend-api", "clerk-swift", "clerk-android", "clerk-new"],
     conditionalSkills: [
       {
         when: { deps: ["next"] },
@@ -87,13 +77,13 @@ export const skills: SkillEntry[] = [
   {
     source: "neondatabase/agent-skills",
     label: "Neon Database",
-    skills: ["neon-postgres"],
+    skills: ["neon-postgres", "claimable-postgres", "neon-postgres-egress-optimizer", "skill-creator", "plugin-manager"],
     when: { deps: ["@neondatabase/serverless"] },
   },
   {
     source: "supabase/agent-skills",
     label: "Supabase",
-    skills: ["supabase-postgres-best-practices"],
+    skills: ["supabase-postgres-best-practices", "skill-creator"],
     when: { deps: ["@supabase/supabase-js"] },
   },
   {
@@ -111,14 +101,7 @@ export const skills: SkillEntry[] = [
   {
     source: "expo/skills",
     label: "Expo",
-    skills: [
-      "expo-dev-client",
-      "building-native-ui",
-      "native-data-fetching",
-      "expo-deployment",
-      "upgrading-expo",
-      "expo-cicd-workflows",
-    ],
+    skills: ["expo-dev-client", "building-native-ui", "native-data-fetching", "expo-deployment", "upgrading-expo", "expo-cicd-workflows", "expo-api-routes", "use-dom"],
     conditionalSkills: [
       {
         when: { deps: ["nativewind"] },
@@ -130,7 +113,7 @@ export const skills: SkillEntry[] = [
   {
     source: "prisma/skills",
     label: "Prisma",
-    skills: ["prisma-cli", "prisma-client-api", "prisma-database-setup"],
+    skills: ["prisma-cli", "prisma-client-api", "prisma-database-setup", "prisma-upgrade-v7", "prisma-driver-adapter-implementation"],
     conditionalSkills: [
       {
         when: { deps: ["@prisma/extension-accelerate"] },
@@ -148,17 +131,7 @@ export const skills: SkillEntry[] = [
   {
     source: "waynesutton/convexskills",
     label: "Convex",
-    skills: [
-      "convex-best-practices",
-      "convex-functions",
-      "convex-schema-validator",
-      "convex-realtime",
-      "convex-http-actions",
-      "convex-cron-jobs",
-      "convex-file-storage",
-      "convex-migrations",
-      "convex-security-check",
-    ],
+    skills: ["convex-best-practices", "convex-functions", "convex-schema-validator", "convex-realtime", "convex-http-actions", "convex-cron-jobs", "convex-file-storage", "convex-migrations", "convex-security-check"],
     when: { deps: ["convex"] },
   },
   {
@@ -173,4 +146,262 @@ export const skills: SkillEntry[] = [
     skills: ["ultracite"],
     when: { deps: ["ultracite"] },
   },
+  {
+    source: "apify/agent-skills",
+    label: "Apify",
+    skills: ["apify-ultimate-scraper", "apify-market-research", "apify-ecommerce", "apify-actor-development", "apify-lead-generation", "apify-actorization", "apify-trend-analysis", "apify-competitor-intelligence", "apify-content-analytics", "apify-brand-reputation-monitoring", "apify-influencer-discovery", "apify-audience-analysis", "apify-generate-output-schema"],
+    when: { deps: ["apify", "apify-client", "crawlee"] },
+  },
+  {
+    source: "apollographql/skills",
+    label: "Apollo GraphQL",
+    skills: ["apollo-client", "graphql-schema", "graphql-operations", "apollo-server", "apollo-connectors", "apollo-federation", "apollo-router"],
+    when: { deps: ["@apollo/client", "@apollo/server", "graphql"] },
+  },
+  {
+    source: "auth0/agent-skills",
+    label: "Auth0",
+    skills: ["auth0-quickstart", "auth0-nextjs", "auth0-react", "auth0-react-native", "auth0-mfa", "auth0-express", "auth0-angular", "auth0-vue", "auth0-migration", "auth0-nuxt", "auth0-fastify", "auth0-fastify-api"],
+    when: { deps: ["auth0", "@auth0/nextjs-auth0", "@auth0/auth0-react", "@auth0/auth0-vue", "@auth0/auth0-angular"] },
+  },
+  {
+    source: "browser-use/browser-use",
+    label: "Browser Use",
+    skills: ["browser-use", "remote-browser"],
+    when: { deps: ["browser-use"] },
+  },
+  {
+    source: "callstackincubator/agent-skills",
+    label: "Callstack React Native",
+    skills: ["react-native-best-practices", "upgrading-react-native", "react-native-brownfield-migration", "react-native-ai-skills"],
+    when: { deps: ["react-native"] },
+  },
+  {
+    source: "cloudflare/skills",
+    label: "Cloudflare Workers",
+    skills: ["cloudflare", "wrangler", "workers-best-practices", "durable-objects", "web-perf", "agents-sdk", "building-ai-agent-on-cloudflare", "building-mcp-server-on-cloudflare", "sandbox-sdk"],
+    when: { deps: ["wrangler", "@cloudflare/workers-types", "cloudflare"] },
+  },
+  {
+    source: "elevenlabs/skills",
+    label: "ElevenLabs",
+    skills: ["text-to-speech", "speech-to-text", "agents", "setup-api-key", "sound-effects", "music"],
+    when: { deps: ["elevenlabs"] },
+  },
+  {
+    source: "firebase/agent-skills",
+    label: "Firebase",
+    skills: ["firebase-basics", "firebase-auth-basics", "firebase-ai-logic", "firebase-hosting-basics", "firebase-app-hosting-basics", "firebase-data-connect", "firebase-firestore-standard", "firebase-local-env-setup", "firebase-firestore-basics"],
+    when: { deps: ["firebase", "firebase-admin", "@firebase/app"] },
+  },
+  {
+    source: "firecrawl/cli",
+    label: "Firecrawl",
+    skills: ["firecrawl", "firecrawl-scrape", "firecrawl-browser", "firecrawl-search", "firecrawl-crawl", "firecrawl-agent", "firecrawl-map", "firecrawl-download"],
+    when: { deps: ["@mendable/firecrawl-js", "firecrawl-js"] },
+  },
+  {
+    source: "getsentry/sentry-for-ai",
+    label: "Sentry",
+    skills: ["sentry-workflow", "sentry-nextjs-sdk", "sentry-feature-setup", "sentry-react-sdk", "sentry-sdk-setup", "sentry-browser-sdk", "sentry-sdk-upgrade", "sentry-node-sdk", "sentry-react-native-sdk", "sentry-nestjs-sdk", "sentry-svelte-sdk"],
+    when: { deps: ["@sentry/node", "@sentry/react", "@sentry/nextjs", "@sentry/browser", "@sentry/svelte", "@sentry/react-native"] },
+  },
+  {
+    source: "huggingface/skills",
+    label: "Hugging Face",
+    skills: ["hugging-face-model-trainer", "hugging-face-datasets", "hugging-face-evaluation", "hugging-face-cli", "transformers-js", "gradio"],
+    when: { deps: ["@huggingface/hub", "@huggingface/inference", "@huggingface/transformers"] },
+  },
+  {
+    source: "langchain-ai/langchain-skills",
+    label: "LangChain",
+    skills: ["langgraph-fundamentals", "langchain-fundamentals", "langchain-rag", "langgraph-persistence", "langgraph-human-in-the-loop", "langchain-middleware", "langchain-dependencies"],
+    when: { deps: ["langchain", "@langchain/core", "@langchain/openai", "@langchain/community"] },
+  },
+  {
+    source: "langfuse/skills",
+    label: "Langfuse",
+    skills: ["langfuse", "langfuse-observability", "langfuse-prompt-migration", "langfuse-api"],
+    when: { deps: ["langfuse"] },
+  },
+  {
+    source: "launchdarkly/agent-skills",
+    label: "LaunchDarkly",
+    skills: ["launchdarkly-flag-cleanup", "launchdarkly-flag-discovery", "launchdarkly-flag-create", "launchdarkly-flag-targeting"],
+    when: { deps: ["launchdarkly-node-server-sdk", "@launchdarkly/node-server-sdk", "launchdarkly-js-client-sdk"] },
+  },
+  {
+    source: "livekit/agent-skills",
+    label: "LiveKit",
+    skills: ["livekit-agents"],
+    when: { deps: ["livekit-client", "livekit-server-sdk", "@livekit/components-react"] },
+  },
+  {
+    source: "mapbox/mapbox-agent-skills",
+    label: "Mapbox",
+    skills: ["mapbox-style-patterns", "mapbox-web-performance-patterns", "mapbox-web-integration-patterns", "mapbox-cartography", "mapbox-geospatial-operations", "mapbox-search-integration", "mapbox-data-visualization-patterns"],
+    when: { deps: ["mapbox-gl", "@mapbox/mapbox-gl-geocoder", "react-map-gl"] },
+  },
+  {
+    source: "mastra-ai/skills",
+    label: "Mastra",
+    skills: ["mastra", "create-mastra", "mastra-best-practices", "mastra-embedded-docs-look-up"],
+    when: { deps: ["mastra", "@mastra/core"] },
+  },
+  {
+    source: "medusajs/medusa-agent-skills",
+    label: "Medusa",
+    skills: ["building-with-medusa", "building-admin-dashboard-customizations", "storefront-best-practices", "building-storefronts", "learning-medusa", "db-migrate", "db-generate"],
+    when: { deps: ["@medusajs/medusa", "@medusajs/js-sdk"] },
+  },
+  {
+    source: "microsoft/playwright",
+    label: "Playwright",
+    skills: ["playwright-dev", "playwright-mcp-dev", "playwright-cli"],
+    when: { deps: ["@playwright/test", "playwright"] },
+  },
+  {
+    source: "openai/skills",
+    label: "OpenAI",
+    skills: ["openai-docs", "security-best-practices", "frontend-skill"],
+    when: { deps: ["openai"] },
+  },
+  {
+    source: "posthog/posthog-for-claude",
+    label: "PostHog",
+    skills: ["posthog-instrumentation", "posthog-debugger"],
+    when: { deps: ["posthog-js", "posthog-node"] },
+  },
+  {
+    source: "redis/agent-skills",
+    label: "Redis",
+    skills: ["redis-development"],
+    when: { deps: ["redis", "ioredis"] },
+  },
+  {
+    source: "remotion-dev/skills",
+    label: "Remotion",
+    skills: ["remotion-best-practices"],
+    when: { deps: ["remotion", "@remotion/cli"] },
+  },
+  {
+    source: "resend/resend-skills",
+    label: "Resend",
+    skills: ["resend", "agent-email-inbox", "send-email", "resend-inbound"],
+    when: { deps: ["resend"] },
+  },
+  {
+    source: "resend/react-email",
+    label: "React Email",
+    skills: ["react-email"],
+    when: { deps: ["react-email", "@react-email/components"] },
+  },
+  {
+    source: "sanity-io/agent-toolkit",
+    label: "Sanity",
+    skills: ["sanity-best-practices", "content-modeling-best-practices"],
+    when: { deps: ["sanity", "next-sanity", "@sanity/client"] },
+  },
+  {
+    source: "stripe/ai",
+    label: "Stripe",
+    skills: ["stripe-best-practices", "upgrade-stripe", "stripe-projects"],
+    when: { deps: ["stripe", "@stripe/stripe-js", "@stripe/react-stripe-js"] },
+  },
+  {
+    source: "sveltejs/ai-tools",
+    label: "Svelte",
+    skills: ["svelte-code-writer", "svelte-core-bestpractices"],
+    when: { deps: ["svelte", "@sveltejs/kit"] },
+  },
+  {
+    source: "tldraw/tldraw",
+    label: "tldraw",
+    skills: ["write-unit-tests", "write-e2e-tests", "write-docs", "write-example"],
+    when: { deps: ["tldraw", "@tldraw/tldraw"] },
+  },
+  {
+    source: "triggerdotdev/skills",
+    label: "Trigger.dev",
+    skills: ["trigger-tasks", "trigger-config", "trigger-agents", "trigger-setup", "trigger-realtime", "trigger-cost-savings"],
+    when: { deps: ["@trigger.dev/sdk"] },
+  },
+  {
+    source: "upstash/redis-js",
+    label: "Upstash Redis",
+    skills: ["redis-js"],
+    when: { deps: ["@upstash/redis"] },
+  },
+  {
+    source: "upstash/qstash-js",
+    label: "Upstash QStash",
+    skills: ["qstash-js"],
+    when: { deps: ["@upstash/qstash"] },
+  },
+  {
+    source: "upstash/ratelimit-js",
+    label: "Upstash Ratelimit",
+    skills: ["upstash-ratelimit-ts", "ratelimit-ts"],
+    when: { deps: ["@upstash/ratelimit"] },
+  },
+  {
+    source: "upstash/workflow-js",
+    label: "Upstash Workflow",
+    skills: ["upstash-workflow-js"],
+    when: { deps: ["@upstash/workflow"] },
+  },
+  {
+    source: "clickhouse/agent-skills",
+    label: "ClickHouse",
+    skills: ["clickhouse-best-practices"],
+    when: { deps: ["@clickhouse/client"] },
+  },
+  {
+    source: "coinbase/agentic-wallet-skills",
+    label: "Coinbase",
+    skills: ["trade", "x402", "pay-for-service", "monetize-service", "send-usdc", "search-for-service", "authenticate-wallet", "fund", "query-onchain-data"],
+    when: { deps: ["@coinbase/agentkit", "@coinbase/agentkit-langchain"] },
+  },
+  {
+    source: "datadog-labs/agent-skills",
+    label: "Datadog",
+    skills: ["dd-pup", "dd-logs", "dd-apm", "dd-monitors", "dd-docs"],
+    when: { deps: ["dd-trace", "datadog-metrics"] },
+  },
+  {
+    source: "encoredev/skills",
+    label: "Encore",
+    skills: ["encore-service", "encore-auth", "encore-code-review", "encore-api", "encore-database", "encore-infrastructure", "encore-testing", "encore-frontend", "encore-migrate", "encore-getting-started"],
+    when: { deps: ["encore.dev"] },
+  },
+  {
+    source: "figma/mcp-server-guide",
+    label: "Figma",
+    skills: ["implement-design", "create-design-system-rules", "figma-use", "code-connect-components", "figma-generate-design", "figma-generate-library"],
+    when: { deps: ["@figma/code-connect", "@figma/rest-api-spec"] },
+  },
+  {
+    source: "google-gemini/gemini-skills",
+    label: "Google Gemini",
+    skills: ["gemini-api-dev", "gemini-interactions-api", "gemini-live-api-dev", "vertex-ai-api-dev"],
+    when: { deps: ["@google/generative-ai", "@google-cloud/vertexai"] },
+  },
+  {
+    source: "n8n-io/n8n",
+    label: "n8n",
+    skills: ["n8n-conventions", "spec-driven-development", "node-add-oauth"],
+    when: { deps: ["n8n", "n8n-workflow"] },
+  },
+  {
+    source: "pulumi/agent-skills",
+    label: "Pulumi",
+    skills: ["pulumi-best-practices", "pulumi-esc", "pulumi-component", "pulumi-automation-api", "pulumi-terraform-to-pulumi"],
+    when: { deps: ["@pulumi/pulumi", "@pulumi/aws", "@pulumi/azure-native", "@pulumi/gcp"] },
+  },
+  {
+    source: "rivet-dev/skills",
+    label: "Rivet",
+    skills: ["sandbox-agent", "rivetkit", "rivetkit-client-javascript", "rivetkit-client-react", "rivetkit-typescript", "rivetkit-actors"],
+    when: { deps: ["rivetkit", "@rivet-gg/actor-client"] },
+  }
 ]

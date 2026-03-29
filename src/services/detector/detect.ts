@@ -1,7 +1,7 @@
 import { log, outro } from "@clack/prompts"
 import pc from "picocolors"
 import { detectDeps } from "./utils"
-import { matchMcpServers, matchSkills } from "../matcher/matcher"
+import { matchMcpServers, matchSkills, readSkillsLock } from "../matcher/matcher"
 import type { ServiceI } from "../service.inerface"
 import { theme } from "../../components/theme"
 
@@ -36,8 +36,9 @@ export type DetectJson = {
 export const detectService = {
   async run({ project }: DetectInput): Promise<DetectResult> {
     const deps = await detectDeps(project)
+    const installedSkills = await readSkillsLock(project)
     const servers = matchMcpServers(deps)
-    const matched = matchSkills(deps)
+    const matched = matchSkills(deps, installedSkills)
 
     return {
       project,
@@ -66,7 +67,8 @@ export const detectService = {
     if (result.matched.length > 0) {
       log.success(pc.bold("Skills"))
       for (const skill of result.matched) {
-        log.message(`  ${theme.bullet} ${skill.label} ${theme.hint(`— ${skill.resolvedSkills.length} skills`)}`)
+        const status = skill.installed ? pc.green(" [installed]") : ""
+        log.message(`  ${theme.bullet} ${skill.label} ${theme.hint(`— ${skill.resolvedSkills.length} skills`)}${status}`)
       }
     }
 

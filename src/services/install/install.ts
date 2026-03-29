@@ -34,6 +34,36 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
     const availableSkills = mcp && !skills ? [] : detected.matched
     const scope = skills && !mcp ? "skills" : mcp && !skills ? "mcp" : "all"
 
+    log.info(`Found ${pc.bold(detected.deps.size.toString())} dependencies in ${pc.dim(detected.project)}`)
+
+    if (availableServers.length > 0) {
+      log.success(pc.bold("MCP Servers"))
+      for (const server of availableServers) {
+        log.message(`  ${theme.bullet} ${server.label} ${theme.hint(`(${server.name})`)}`)
+      }
+    }
+
+    if (availableSkills.length > 0) {
+      log.success(pc.bold("Skills"))
+      for (const skill of availableSkills) {
+        const status = skill.installed ? pc.green(" [installed]") : ""
+        log.message(`  ${theme.bullet} ${skill.label} ${theme.hint(`\u2014 ${skill.resolvedSkills.length} skills`)}${status}`)
+      }
+    }
+
+    if (availableServers.length === 0 && availableSkills.length === 0) {
+      log.warn("No matching MCP servers or skills found for this project.")
+      outro(pc.dim("Done"))
+      return {
+        ...detected,
+        selectedServers: [],
+        selectedSkills: [],
+        selectedMcpAgents: [],
+        selectedSkillAgents: [],
+        scope,
+      }
+    }
+
     const resolvedAgents = agent
       ? await this.resolveAgents(agent, {
           hasServers: availableServers.length > 0,
@@ -158,8 +188,6 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
   }
 
   async command(result: InstallResult): Promise<void> {
-    log.info(`Found ${pc.bold(result.deps.size.toString())} dependencies in ${pc.dim(result.project)}`)
-
     if (result.selectedServers.length === 0 && result.selectedSkills.length === 0) {
       const message = result.scope === "skills"
         ? "No skills selected."
@@ -251,7 +279,8 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
       skill.resolvedSkills.map((skillName) => ({
         value: `${skill.source}::${skillName}`,
         label: skillName,
-        hint: skill.label,
+        hint: skill.installed ? `${skill.label} [installed]` : skill.label,
+        installed: skill.installed,
       }))
     )
 
@@ -259,7 +288,9 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
       ? await promptWithCancel(() => multiselect({
           message: "Select skills to install",
           options: skillOptions,
-          initialValues: skillOptions.map((opt) => opt.value),
+          initialValues: skillOptions
+            .filter((opt) => !opt.installed)
+            .map((opt) => opt.value),
           required: false,
         }))
       : []

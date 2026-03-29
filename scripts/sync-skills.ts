@@ -1,100 +1,16 @@
 /**
- * Fetches official skills from skills.sh and merges them with the existing
- * curated skills registry. New skills are added with empty `when` conditions
- * for manual review.
+ * Checks if existing skills in the registry have changed upstream on skills.sh.
+ * Read-only — reports diffs but does not modify any files.
  *
  * Usage: bun run scripts/sync-skills.ts
  */
 
-import { readFileSync, writeFileSync } from "fs"
+import { readFileSync } from "fs"
 import { resolve } from "path"
+import { OFFICIAL_ORGS } from "../src/registry/orgs"
 
 const SKILLS_REGISTRY_PATH = resolve(import.meta.dirname ?? ".", "../src/registry/skills.ts")
 const SKILLS_API_BASE = "https://skills.sh"
-
-// Official orgs scraped from https://skills.sh/official
-// Each entry is the org slug used on skills.sh
-const OFFICIAL_ORGS = [
-  "anthropics",
-  "apify",
-  "apollographql",
-  "auth0",
-  "automattic",
-  "axiomhq",
-  "base",
-  "better-auth",
-  "bitwarden",
-  "box",
-  "brave",
-  "browser-use",
-  "browserbase",
-  "callstackincubator",
-  "clerk",
-  "clickhouse",
-  "cloudflare",
-  "coderabbitai",
-  "coinbase",
-  "dagster-io",
-  "datadog-labs",
-  "dbt-labs",
-  "denoland",
-  "elevenlabs",
-  "encoredev",
-  "expo",
-  "facebook",
-  "figma",
-  "firebase",
-  "firecrawl",
-  "flutter",
-  "getsentry",
-  "github",
-  "google-gemini",
-  "google-labs-code",
-  "hashicorp",
-  "huggingface",
-  "kotlin",
-  "langchain-ai",
-  "langfuse",
-  "launchdarkly",
-  "livekit",
-  "makenotion",
-  "mapbox",
-  "mastra-ai",
-  "mcp-use",
-  "medusajs",
-  "microsoft",
-  "n8n-io",
-  "neondatabase",
-  "nuxt",
-  "openai",
-  "openshift",
-  "planetscale",
-  "posthog",
-  "prisma",
-  "pulumi",
-  "pytorch",
-  "redis",
-  "remotion-dev",
-  "resend",
-  "rivet-dev",
-  "runwayml",
-  "sanity-io",
-  "semgrep",
-  "streamlit",
-  "stripe",
-  "supabase",
-  "sveltejs",
-  "tavily-ai",
-  "tinybirdco",
-  "tldraw",
-  "triggerdotdev",
-  "upstash",
-  "vercel",
-  "vercel-labs",
-  "webflow",
-  "wix",
-  "wordpress",
-] as const
 
 type ApiSkill = {
   id: string
@@ -159,42 +75,20 @@ function groupBySource(skills: ApiSkill[]): Map<string, ApiSkill[]> {
   return map
 }
 
-// -- Generate the label from a source string --
-function sourceToLabel(source: string): string {
-  const repo = source.split("/")[1] ?? source
-  return repo
-    .replace(/-/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase())
-}
-
-// -- Serialize a SkillEntry to TypeScript code --
-function serializeEntry(entry: ExistingSkillEntry): string {
-  const lines: string[] = []
-  lines.push("  {")
-  lines.push(`    source: ${JSON.stringify(entry.source)},`)
-  lines.push(`    label: ${JSON.stringify(entry.label)},`)
-  lines.push(`    skills: ${JSON.stringify(entry.skills)},`)
-
-  if (entry.conditionalSkills?.length) {
-    lines.push("    conditionalSkills: [")
-    for (const cs of entry.conditionalSkills) {
-      lines.push("      {")
-      lines.push(`        when: { deps: ${JSON.stringify(cs.when.deps)} },`)
-      lines.push(`        skills: ${JSON.stringify(cs.skills)},`)
-      lines.push("      },")
-    }
-    lines.push("    ],")
-  }
-
-  lines.push(`    when: { deps: ${JSON.stringify(entry.when.deps)} },`)
-  lines.push("  }")
-
-  return lines.join("\n")
+// -- Diff helpers --
+function setDiff<T>(a: Set<T>, b: Set<T>): T[] {
+  return [...a].filter((x) => !b.has(x))
 }
 
 // -- Main --
 async function main() {
-  console.log("Fetching official skills from skills.sh...")
+  console.log("Checking existing skills for upstream changes...\n")
+
+  const existingEntries = parseExistingSkills()
+  if (existingEntries.length === 0) {
+    console.error("No existing entries found in skills.ts")
+    process.exit(1)
+  }
 
   const allApiSkills: ApiSkill[] = []
   let fetched = 0
@@ -206,92 +100,69 @@ async function main() {
     if (fetched % 10 === 0) {
       console.log(`  Fetched ${fetched}/${OFFICIAL_ORGS.length} orgs...`)
     }
-    // Small delay to be nice to the API
     await new Promise((r) => setTimeout(r, 100))
   }
 
-  console.log(`Fetched ${allApiSkills.length} skills from ${OFFICIAL_ORGS.length} official orgs`)
-
-  const existingEntries = parseExistingSkills()
-  const existingBySource = new Map(existingEntries.map((e) => [e.source, e]))
+  console.log(`Fetched ${allApiSkills.length} skills from ${OFFICIAL_ORGS.length} orgs\n`)
 
   const grouped = groupBySource(allApiSkills)
 
-  const mergedEntries: ExistingSkillEntry[] = []
-  const newSources: string[] = []
-  const updatedSources: string[] = []
+  type Diff = {
+    source: string
+    added: string[]
+    removed: string[]
+  }
 
-  // First, keep all existing entries (preserving order and `when` conditions)
-  for (const existing of existingEntries) {
-    const apiSkills = grouped.get(existing.source)
-    if (apiSkills) {
-      // Merge: add any new skill names from API that aren't already listed
-      const existingSkillNames = new Set([
-        ...existing.skills,
-        ...(existing.conditionalSkills?.flatMap((cs) => cs.skills) ?? []),
-      ])
-      const newSkillNames = apiSkills
-        .map((s) => s.name)
-        .filter((name) => !existingSkillNames.has(name))
+  const diffs: Diff[] = []
+  let unchanged = 0
+  let notFound = 0
 
-      if (newSkillNames.length > 0) {
-        updatedSources.push(`${existing.source} (+${newSkillNames.join(", ")})`)
-        mergedEntries.push({
-          ...existing,
-          skills: [...existing.skills, ...newSkillNames],
-        })
-      } else {
-        mergedEntries.push(existing)
-      }
-      grouped.delete(existing.source)
+  for (const entry of existingEntries) {
+    const apiSkills = grouped.get(entry.source)
+
+    if (!apiSkills) {
+      notFound++
+      continue
+    }
+
+    const localSkills = new Set([
+      ...entry.skills,
+      ...(entry.conditionalSkills?.flatMap((cs) => cs.skills) ?? []),
+    ])
+    const remoteSkills = new Set(apiSkills.map((s) => s.name))
+
+    const added = setDiff(remoteSkills, localSkills)
+    const removed = setDiff(localSkills, remoteSkills)
+
+    if (added.length > 0 || removed.length > 0) {
+      diffs.push({ source: entry.source, added, removed })
     } else {
-      mergedEntries.push(existing)
+      unchanged++
     }
   }
 
-  // Then, add new sources from the API that don't exist yet
-  for (const [source, apiSkills] of grouped) {
-    const skillNames = apiSkills.map((s) => s.name)
-    newSources.push(source)
-    mergedEntries.push({
-      source,
-      label: sourceToLabel(source),
-      skills: skillNames,
-      when: { deps: [] }, // Empty — needs manual curation
-    })
+  // Report
+  console.log("--- Diff Report ---")
+  console.log(`Checked: ${existingEntries.length} entries`)
+  console.log(`Unchanged: ${unchanged}`)
+  console.log(`Not found on API: ${notFound}`)
+  console.log(`Changed: ${diffs.length}\n`)
+
+  if (diffs.length === 0) {
+    console.log("All existing skills are up to date.")
+    return
   }
 
-  // Generate the output file
-  const serialized = mergedEntries.map(serializeEntry).join(",\n")
-  const output = `import type { SkillEntry } from "./types"
-
-export const skills: SkillEntry[] = [
-${serialized},
-]
-`
-
-  writeFileSync(SKILLS_REGISTRY_PATH, output)
-
-  // Summary
-  console.log("\n--- Sync Summary ---")
-  console.log(`Total entries: ${mergedEntries.length}`)
-  console.log(`Existing (unchanged): ${existingEntries.length - updatedSources.length}`)
-
-  if (updatedSources.length > 0) {
-    console.log(`\nUpdated (new skills added):`)
-    for (const s of updatedSources) {
+  for (const diff of diffs) {
+    console.log(`${diff.source}:`)
+    for (const s of diff.added) {
       console.log(`  + ${s}`)
     }
-  }
-
-  if (newSources.length > 0) {
-    console.log(`\nNew sources (needs \`when.deps\` curation):`)
-    for (const s of newSources) {
-      console.log(`  * ${s}`)
+    for (const s of diff.removed) {
+      console.log(`  - ${s}`)
     }
+    console.log()
   }
-
-  console.log(`\nWrote to ${SKILLS_REGISTRY_PATH}`)
 }
 
 main().catch(console.error)
