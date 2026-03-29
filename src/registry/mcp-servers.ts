@@ -2,13 +2,6 @@ import type { McpServerEntry } from "./types"
 
 export const mcpServers: McpServerEntry[] = [
   {
-    key: "better-t-stack",
-    label: "Better T Stack",
-    name: "better-t-stack",
-    target: "npx create-better-t-stack@latest mcp",
-    when: { deps: ["*"] },
-  },
-  {
     key: "context7",
     label: "Context7",
     name: "context7",

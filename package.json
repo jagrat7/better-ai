@@ -11,7 +11,8 @@
   ],
   "scripts": {
     "build": "bun build src/cli.ts --outfile dist/cli.mjs --target node",
-    "dev": "bun run src/cli.ts"
+    "dev": "bun run src/cli.ts",
+    "sync:skills": "bun run scripts/sync-skills.ts"
   },
   "license": "MIT",
   "devDependencies": {

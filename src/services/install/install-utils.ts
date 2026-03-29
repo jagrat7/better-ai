@@ -33,28 +33,22 @@ async function pathExists(path: string) {
   }
 }
 
+const packageManagerChecks: { files: string[], manager: PackageManager }[] = [
+  { files: ["bun.lock", "bun.lockb", "bunfig.toml"], manager: "bun" },
+  { files: ["pnpm-lock.yaml"], manager: "pnpm" },
+  { files: ["yarn.lock"], manager: "yarn" },
+  { files: ["package-lock.json"], manager: "npm" },
+]
+
 export async function detectPackageManager(project: string): Promise<PackageManager> {
-  if (await pathExists(join(project, "bun.lock")) || await pathExists(join(project, "bun.lockb")) || await pathExists(join(project, "bunfig.toml"))) {
-    return "bun"
+  for (const { files, manager } of packageManagerChecks) {
+    const exists = await Promise.all(files.map(f => pathExists(join(project, f))))
+    if (exists.some(Boolean)) {
+      return manager
+    }
   }
 
-  if (await pathExists(join(project, "pnpm-lock.yaml"))) {
-    return "pnpm"
-  }
-
-  if (await pathExists(join(project, "yarn.lock"))) {
-    return "yarn"
-  }
-
-  if (await pathExists(join(project, "package-lock.json"))) {
-    return "npm"
-  }
-
-  if (process.versions.bun) {
-    return "bun"
-  }
-
-  return "npm"
+  return process.versions.bun ? "bun" : "npm"
 }
 
 function getPackageRunnerPrefix(packageManager: PackageManager): string[] {
