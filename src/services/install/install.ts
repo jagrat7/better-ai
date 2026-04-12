@@ -3,6 +3,23 @@ import pc from "picocolors"
 import { detectService, type DetectInput, type DetectJson, type DetectResult } from "../detector/detect"
 import { executeInstallations } from "./install-utils"
 import { mcpAgents, skillAgents, defaultMcpAgents, defaultSkillAgents } from "../../registry/agents"
+import type { AgentOption } from "../../registry/types"
+
+function agentOptionsWithHints(agents: AgentOption[]) {
+  return agents.map((a) => ({
+    value: a.value,
+    label: a.globalOnly ? `${a.label} ${pc.dim("(global only)")}` : a.label,
+  }))
+}
+
+function warnGlobalOnlyAgents(selected: string[], agents: AgentOption[]) {
+  const globalOnlyMap = new Map(agents.filter((a) => a.globalOnly).map((a) => [a.value, a.label]))
+  const picked = selected.filter((v) => globalOnlyMap.has(v))
+  if (picked.length > 0) {
+    const names = picked.map((v) => pc.bold(globalOnlyMap.get(v)!)).join(", ")
+    log.warn(`${names} — global install only (no project-level config)`)
+  }
+}
 import { promptWithCancel } from "../utils"
 import type { ServiceI } from "../service.inerface"
 import { theme } from "../../components/theme"
@@ -34,21 +51,13 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
     const availableSkills = mcp && !skills ? [] : detected.matched
     const scope = skills && !mcp ? "skills" : mcp && !skills ? "mcp" : "all"
 
-    log.info(`Found ${pc.bold(detected.deps.size.toString())} dependencies in ${pc.dim(detected.project)}`)
+    const parts = [
+      availableServers.length > 0 && `${pc.bold(availableServers.length.toString())} MCP servers`,
+      availableSkills.length > 0 && `${pc.bold(availableSkills.length.toString())} skills`,
+    ].filter(Boolean)
 
-    if (availableServers.length > 0) {
-      log.success(pc.bold("MCP Servers"))
-      for (const server of availableServers) {
-        log.message(`  ${theme.bullet} ${server.label} ${theme.hint(`(${server.name})`)}`)
-      }
-    }
-
-    if (availableSkills.length > 0) {
-      log.success(pc.bold("Skills"))
-      for (const skill of availableSkills) {
-        const status = skill.installed ? pc.green(" [installed]") : ""
-        log.message(`  ${theme.bullet} ${skill.label} ${theme.hint(`\u2014 ${skill.resolvedSkills.length} skills`)}${status}`)
-      }
+    if (parts.length > 0) {
+      log.info(`Found ${parts.join(" and ")} for ${pc.dim(detected.project)}`)
     }
 
     if (availableServers.length === 0 && availableSkills.length === 0) {
@@ -142,24 +151,34 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
         unsupportedSkill.push(agent)
         log.warn(`Agent ${pc.bold(agent)} is not supported by skills CLI (MCP only)`)
       }
+
+      if (inMcp) {
+        const entry = mcpAgents.find((a) => a.value === agent)
+        if (entry?.globalOnly) {
+          log.info(`${pc.bold(entry.label)} — MCP servers will be installed globally (no project-level config)`)
+        }
+      }
     }
 
     if (mcp.length === 0 && hasServers) {
       log.info("None of the specified agents support MCP — select MCP agents:")
       const picked = await promptWithCancel(() => multiselect({
         message: "Select agents to install MCP servers to",
-        options: mcpAgents,
+        options: agentOptionsWithHints(mcpAgents),
         initialValues: defaultMcpAgents,
         required: false,
       }))
-      if (picked) mcp.push(...picked)
+      if (picked) {
+        warnGlobalOnlyAgents(picked, mcpAgents)
+        mcp.push(...picked)
+      }
     }
 
     if (skill.length === 0 && hasSkills) {
       log.info("None of the specified agents support skills — select skill agents:")
       const picked = await promptWithCancel(() => multiselect({
         message: "Select agents to install skills to",
-        options: skillAgents,
+        options: agentOptionsWithHints(skillAgents),
         initialValues: defaultSkillAgents,
         required: false,
       }))
@@ -268,7 +287,7 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
       ?? (selectedServerKeys.length > 0
         ? await promptWithCancel(() => multiselect({
             message: "Select agents to install MCP servers to",
-            options: mcpAgents,
+            options: agentOptionsWithHints(mcpAgents),
             initialValues: defaultMcpAgents,
             required: false,
           }))
@@ -276,6 +295,10 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
 
     if (!selectedMcpAgents) {
       return null
+    }
+
+    if (selectedMcpAgents.length > 0) {
+      warnGlobalOnlyAgents(selectedMcpAgents, mcpAgents)
     }
 
     const skillOptions = result.matched.flatMap((skill) =>

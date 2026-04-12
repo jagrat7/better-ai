@@ -77,6 +77,4 @@ export const OFFICIAL_ORGS = [
   "vercel",
   "vercel-labs",
   "webflow",
-  "wix",
-  "wordpress",
 ] as const

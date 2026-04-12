@@ -1,4 +1,4 @@
-import type { McpServerEntry } from "./types"
+import type { McpServerEntry } from "./types";
 
 export const mcpServers: McpServerEntry[] = [
   {
@@ -35,7 +35,14 @@ export const mcpServers: McpServerEntry[] = [
     label: "shadcn/ui",
     name: "shadcn",
     target: "npx -y shadcn@latest mcp",
-    when: { deps: ["react-router-dom", "@tanstack/react-router", "@tanstack/start", "next"] },
+    when: {
+      deps: [
+        "react-router-dom",
+        "@tanstack/react-router",
+        "@tanstack/start",
+        "next",
+      ],
+    },
   },
   {
     key: "next-devtools",
@@ -105,7 +112,14 @@ export const mcpServers: McpServerEntry[] = [
     label: "Clerk",
     name: "clerk",
     target: "https://mcp.clerk.com/mcp",
-    when: { deps: ["@clerk/nextjs", "@clerk/clerk-react", "@clerk/express", "@clerk/backend"] },
+    when: {
+      deps: [
+        "@clerk/nextjs",
+        "@clerk/clerk-react",
+        "@clerk/express",
+        "@clerk/backend",
+      ],
+    },
   },
   {
     key: "expo",
@@ -121,4 +135,4 @@ export const mcpServers: McpServerEntry[] = [
     target: "https://mcp.polar.sh/mcp/polar-mcp",
     when: { deps: ["@polar-sh/sdk"] },
   },
-]
+];

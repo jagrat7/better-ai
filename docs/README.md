@@ -1,4 +1,12 @@
+
 # better-ai
+
+<img src="https://img.shields.io/badge/Status-Alpha-yellow" alt="Status: Alpha">
+
+
+<p>
+  <img src="logo.png" alt="Better AI" />
+</p>
 
 Auto-install MCP servers and agent skills based on your project's stack.
 
@@ -15,8 +23,3 @@ npx better-ai detect --json
 # Point at a different project
 npx better-ai detect --project ./my-app
 ```
-
-
-## License
-
-MIT

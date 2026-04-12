@@ -17,6 +17,7 @@ export type McpServerEntry = {
 export type AgentOption = {
   value: string
   label: string
+  globalOnly?: boolean
 }
 
 export type SkillEntry = {

@@ -12,7 +12,8 @@
   "scripts": {
     "build": "bun build src/cli.ts --outfile dist/cli.mjs --target node",
     "dev": "bun run src/cli.ts",
-    "sync:skills": "bun run scripts/sync-skills.ts"
+    "sync:skills": "bun run scripts/sync-skills.ts",
+    "sync:agents": "bun run scripts/sync-agents.ts"
   },
   "license": "MIT",
   "devDependencies": {
@@ -22,6 +23,7 @@
   "dependencies": {
     "@clack/prompts": "^1.1.0",
     "@trpc/server": "^11.13.4",
+    "better-result": "^2.8.1",
     "execa": "^9.6.1",
     "picocolors": "^1.1.1",
     "smol-toml": "^1.6.1",

@@ -4,7 +4,8 @@ import { execa } from "execa"
 import type { McpServerEntry } from "../../registry/types"
 import type { ResolvedSkillEntry } from "../matcher/matcher"
 
-export type PackageManager = "bun" | "pnpm" | "yarn" | "npm"
+
+export type PackageManager = "bun" | "pnpm" | "yarn" | "npm" | "deno"
 
 export type InstallFailure<T> = {
   item: T
@@ -34,6 +35,7 @@ async function pathExists(path: string) {
 }
 
 const packageManagerChecks: { files: string[], manager: PackageManager }[] = [
+  { files: ["deno.lock", "deno.json", "deno.jsonc"], manager: "deno" },
   { files: ["bun.lock", "bun.lockb", "bunfig.toml"], manager: "bun" },
   { files: ["pnpm-lock.yaml"], manager: "pnpm" },
   { files: ["yarn.lock"], manager: "yarn" },
@@ -51,25 +53,26 @@ export async function detectPackageManager(project: string): Promise<PackageMana
   return process.versions.bun ? "bun" : "npm"
 }
 
-function getPackageRunnerPrefix(packageManager: PackageManager): string[] {
+function getPackageRunnerArgs(packageManager: PackageManager, args: string[]): { command: string, args: string[] } {
+  const [pkg, ...rest] = args
   switch (packageManager) {
+    case "deno":
+      return { command: "deno", args: ["run", "--allow-all", `npm:${pkg}`, ...rest] }
     case "bun":
-      return ["bunx"]
+      return { command: "bunx", args }
     case "pnpm":
-      return ["pnpm", "dlx"]
+      return { command: "pnpm", args: ["dlx", ...args] }
     case "yarn":
-      return ["yarn", "dlx"]
+      return { command: "yarn", args: ["dlx", ...args] }
     default:
-      return ["npx"]
+      return { command: "npx", args }
   }
 }
 
 async function runPackageCommand(project: string, packageManager: PackageManager, args: string[]) {
-  const prefix = getPackageRunnerPrefix(packageManager)
-  const command = prefix[0] ?? "npx"
-  const commandArgs = [...prefix.slice(1), ...args]
+  const resolved = getPackageRunnerArgs(packageManager, args)
 
-  await execa(command, commandArgs, {
+  await execa(resolved.command, resolved.args, {
     cwd: project,
     env: {
       ...process.env,
