@@ -5,7 +5,7 @@
 
 
 <p>
-  <img src="logo.png" alt="Better AI" />
+  <img src="./docs/logo.png" alt="Better AI" />
 </p>
 
 Auto-install MCP servers and agent skills based on your project's stack.
