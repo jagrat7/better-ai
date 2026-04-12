@@ -26,6 +26,7 @@ import { theme } from "../../components/theme"
 
 export type InstallInput = DetectInput & {
   auto?: boolean
+  json?: boolean
   agent?: string[]
   skills?: boolean
   mcp?: boolean
@@ -45,24 +46,27 @@ export type InstallJson = DetectJson & {
 }
 
 export class InstallService implements ServiceI<InstallInput, InstallResult, InstallJson> {
-  async run({ auto, agent, skills, mcp, ...input }: InstallInput): Promise<InstallResult> {
+  async run({ auto, json, agent, skills, mcp, ...input }: InstallInput): Promise<InstallResult> {
     const detected = await detectService.run(input)
     const availableServers = skills && !mcp ? [] : detected.servers
     const availableSkills = mcp && !skills ? [] : detected.matched
     const scope = skills && !mcp ? "skills" : mcp && !skills ? "mcp" : "all"
+    const quiet = json === true
 
     const parts = [
       availableServers.length > 0 && `${pc.bold(availableServers.length.toString())} MCP servers`,
       availableSkills.length > 0 && `${pc.bold(availableSkills.length.toString())} skills`,
     ].filter(Boolean)
 
-    if (parts.length > 0) {
+    if (!quiet && parts.length > 0) {
       log.info(`Found ${parts.join(" and ")} for ${pc.dim(detected.project)}`)
     }
 
     if (availableServers.length === 0 && availableSkills.length === 0) {
-      log.warn("No matching MCP servers or skills found for this project.")
-      outro(pc.dim("Done"))
+      if (!quiet) {
+        log.warn("No matching MCP servers or skills found for this project.")
+        outro(pc.dim("Done"))
+      }
       return {
         ...detected,
         selectedServers: [],
@@ -304,8 +308,8 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
     const skillOptions = result.matched.flatMap((skill) =>
       skill.resolvedSkills.map((skillName) => ({
         value: `${skill.source}::${skillName}`,
-        label: skillName,
-        hint: skill.installed ? `${skill.label} [installed]` : skill.label,
+        label: skill.installed ? `${skillName} [installed]` : skillName,
+        hint: ` ${skill.label}`,
         installed: skill.installed,
       }))
     )
@@ -370,6 +374,7 @@ export const installService = new InstallService()
 export async function install(input: InstallInput & { json?: boolean }) {
   const result = await installService.run({
     ...input,
+    json: input.json,
     auto: input.auto ?? input.json ?? false,
   })
 

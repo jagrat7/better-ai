@@ -12,6 +12,9 @@
   "scripts": {
     "build": "bun build src/cli.ts --outfile dist/cli.mjs --target node",
     "dev": "bun run src/cli.ts",
+    "test": "bun test tests/unit/*.test.ts tests/e2e/*.test.ts",
+    "test:watch": "bun test --watch tests/unit/*.test.ts tests/e2e/*.test.ts",
+    "test:coverage": "bun test --coverage tests/unit/*.test.ts tests/e2e/*.test.ts",
     "sync:skills": "bun run scripts/sync-skills.ts",
     "sync:agents": "bun run scripts/sync-agents.ts"
   },
