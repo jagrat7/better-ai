@@ -236,6 +236,9 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
     s.stop("Installation complete")
 
     log.info(`Using ${pc.bold(execution.packageManager)} to run installer packages`)
+    if (execution.usedFallback) {
+      log.warn(`Preferred package manager ${pc.bold(execution.preferredPackageManager)} is unavailable, fell back to ${pc.bold(execution.packageManager)}`)
+    }
 
     if (execution.mcp.installed.length > 0) {
       log.success(pc.bold("Installed MCP Servers"))

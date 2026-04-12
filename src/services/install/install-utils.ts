@@ -1,11 +1,10 @@
 import { access } from "node:fs/promises"
 import { join } from "node:path"
 import { execa } from "execa"
+import { getPackageManagerConfig, packageManagers, type PackageManager } from "../../registry/package-managers"
 import type { McpServerEntry } from "../../registry/types"
 import type { ResolvedSkillEntry } from "../matcher/matcher"
 
-
-export type PackageManager = "bun" | "pnpm" | "yarn" | "npm" | "deno"
 
 export type InstallFailure<T> = {
   item: T
@@ -14,6 +13,8 @@ export type InstallFailure<T> = {
 
 export type InstallExecutionSummary = {
   packageManager: PackageManager
+  preferredPackageManager: PackageManager
+  usedFallback: boolean
   skills: {
     installed: ResolvedSkillEntry[]
     failed: Array<InstallFailure<ResolvedSkillEntry>>
@@ -34,16 +35,8 @@ async function pathExists(path: string) {
   }
 }
 
-const packageManagerChecks: { files: string[], manager: PackageManager }[] = [
-  { files: ["deno.lock", "deno.json", "deno.jsonc"], manager: "deno" },
-  { files: ["bun.lock", "bun.lockb", "bunfig.toml"], manager: "bun" },
-  { files: ["pnpm-lock.yaml"], manager: "pnpm" },
-  { files: ["yarn.lock"], manager: "yarn" },
-  { files: ["package-lock.json"], manager: "npm" },
-]
-
 export async function detectPackageManager(project: string): Promise<PackageManager> {
-  for (const { files, manager } of packageManagerChecks) {
+  for (const { files, manager } of packageManagers) {
     const exists = await Promise.all(files.map(f => pathExists(join(project, f))))
     if (exists.some(Boolean)) {
       return manager
@@ -53,19 +46,57 @@ export async function detectPackageManager(project: string): Promise<PackageMana
   return process.versions.bun ? "bun" : "npm"
 }
 
+export async function isPackageManagerAvailable(packageManager: PackageManager): Promise<boolean> {
+  const command = getPackageManagerConfig(packageManager).command
+
+  try {
+    await execa(command, ["--version"], {
+      env: {
+        ...process.env,
+        CI: "true",
+      },
+    })
+    return true
+  } catch {
+    return false
+  }
+}
+
+export async function resolvePackageManager(
+  project: string,
+  isAvailable: (packageManager: PackageManager) => Promise<boolean> = isPackageManagerAvailable,
+): Promise<{ preferredPackageManager: PackageManager, packageManager: PackageManager, usedFallback: boolean }> {
+  const preferredPackageManager = await detectPackageManager(project)
+
+  if (await isAvailable(preferredPackageManager)) {
+    return {
+      preferredPackageManager,
+      packageManager: preferredPackageManager,
+      usedFallback: false,
+    }
+  }
+
+  if (preferredPackageManager !== "npm" && await isAvailable("npm")) {
+    return {
+      preferredPackageManager,
+      packageManager: "npm",
+      usedFallback: true,
+    }
+  }
+
+  return {
+    preferredPackageManager,
+    packageManager: preferredPackageManager,
+    usedFallback: false,
+  }
+}
+
 function getPackageRunnerArgs(packageManager: PackageManager, args: string[]): { command: string, args: string[] } {
-  const [pkg, ...rest] = args
-  switch (packageManager) {
-    case "deno":
-      return { command: "deno", args: ["run", "--allow-all", `npm:${pkg}`, ...rest] }
-    case "bun":
-      return { command: "bunx", args }
-    case "pnpm":
-      return { command: "pnpm", args: ["dlx", ...args] }
-    case "yarn":
-      return { command: "yarn", args: ["dlx", ...args] }
-    default:
-      return { command: "npx", args }
+  const metadata = getPackageManagerConfig(packageManager)
+  const command = metadata.runner ?? metadata.command
+  return {
+    command,
+    args: metadata.getRunnerArgs?.(args) ?? args,
   }
 }
 
@@ -81,6 +112,20 @@ async function runPackageCommand(project: string, packageManager: PackageManager
   })
 }
 
+function formatManualInstallCommand(args: string[]) {
+  return `npx ${args.join(" ")}`
+}
+
+function formatInstallFailure(error: unknown, args: string[]) {
+  const message = error instanceof Error ? error.message : String(error)
+  return `${message}. Try manually with: ${formatManualInstallCommand(args)}`
+}
+
+type ExecuteInstallationsDependencies = {
+  resolvePackageManager?: typeof resolvePackageManager
+  runPackageCommand?: typeof runPackageCommand
+}
+
 export async function executeInstallations({
   project,
   selectedSkills,
@@ -93,10 +138,14 @@ export async function executeInstallations({
   selectedServers: McpServerEntry[]
   mcpAgents: string[]
   skillAgents: string[]
-}): Promise<InstallExecutionSummary> {
-  const packageManager = await detectPackageManager(project)
+}, dependencies: ExecuteInstallationsDependencies = {}): Promise<InstallExecutionSummary> {
+  const resolvePackageManagerFn = dependencies.resolvePackageManager ?? resolvePackageManager
+  const runPackageCommandFn = dependencies.runPackageCommand ?? runPackageCommand
+  const { packageManager, preferredPackageManager, usedFallback } = await resolvePackageManagerFn(project)
   const summary: InstallExecutionSummary = {
     packageManager,
+    preferredPackageManager,
+    usedFallback,
     skills: {
       installed: [],
       failed: [],
@@ -108,43 +157,47 @@ export async function executeInstallations({
   }
 
   for (const skill of selectedSkills) {
+    const installArgs = [
+      "skills@latest",
+      "add",
+      skill.source,
+      "--skill",
+      ...skill.resolvedSkills,
+      "--agent",
+      ...skillAgents,
+      "-y",
+    ]
+
     try {
-      await runPackageCommand(project, packageManager, [
-        "skills@latest",
-        "add",
-        skill.source,
-        "--skill",
-        ...skill.resolvedSkills,
-        "--agent",
-        ...skillAgents,
-        "-y",
-      ])
+      await runPackageCommandFn(project, packageManager, installArgs)
       summary.skills.installed.push(skill)
     } catch (error) {
       summary.skills.failed.push({
         item: skill,
-        error: error instanceof Error ? error.message : String(error),
+        error: formatInstallFailure(error, installArgs),
       })
     }
   }
 
   for (const server of selectedServers) {
+    const installArgs = [
+      "add-mcp@latest",
+      server.target,
+      "--name",
+      server.name,
+      ...(server.transport ? ["-t", server.transport] : []),
+      ...(server.headers ?? []).flatMap((header) => ["--header", header]),
+      ...mcpAgents.flatMap((agent) => ["-a", agent]),
+      "-y",
+    ]
+
     try {
-      await runPackageCommand(project, packageManager, [
-        "add-mcp@latest",
-        server.target,
-        "--name",
-        server.name,
-        ...(server.transport ? ["-t", server.transport] : []),
-        ...(server.headers ?? []).flatMap((header) => ["--header", header]),
-        ...mcpAgents.flatMap((agent) => ["-a", agent]),
-        "-y",
-      ])
+      await runPackageCommandFn(project, packageManager, installArgs)
       summary.mcp.installed.push(server)
     } catch (error) {
       summary.mcp.failed.push({
         item: server,
-        error: error instanceof Error ? error.message : String(error),
+        error: formatInstallFailure(error, installArgs),
       })
     }
   }
