@@ -1,6 +1,6 @@
 {
   "name": "bttrai",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Install MCP servers and agent skills based on your project's stack",
   "keywords": [
     "agents",
