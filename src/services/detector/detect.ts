@@ -33,6 +33,7 @@ export type DetectJson = {
     skills: string[]
   }>
 }
+
 export const detectService = {
   async run({ project }: DetectInput): Promise<DetectResult> {
     const deps = await detectDeps(project)

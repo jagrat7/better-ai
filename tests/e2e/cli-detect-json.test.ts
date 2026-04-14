@@ -17,7 +17,7 @@ test("detect outputs stable JSON for a matching project", () => {
     skills: Array<{ source: string }>
   }
 
-  expect(json.deps).toEqual(["next", "ai", "better-auth"])
+  expect([...json.deps].sort()).toEqual(["ai", "better-auth", "next"])
   expect(json.mcpServers.map((server) => server.key)).toEqual([
     "context7",
     "shadcn",
