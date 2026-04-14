@@ -2,7 +2,7 @@ import { log, outro } from "@clack/prompts"
 import pc from "picocolors"
 import { detectDeps } from "./utils"
 import { matchMcpServers, matchSkills, readSkillsLock } from "../matcher/matcher"
-import type { ServiceI } from "../service.inerface"
+import type { ServiceI } from "../service.interface"
 import { theme } from "../../components/theme"
 
 export type DetectInput = {

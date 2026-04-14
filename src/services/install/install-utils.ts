@@ -1,8 +1,10 @@
 import { access } from "node:fs/promises"
 import { join } from "node:path"
+import { log } from "@clack/prompts"
 import { execa } from "execa"
+import pc from "picocolors"
 import { getPackageManagerConfig, packageManagers, type PackageManager } from "../../registry/package-managers"
-import type { McpServerEntry } from "../../registry/types"
+import type { AgentOption, McpServerEntry } from "../../registry/types"
 import type { ResolvedSkillEntry } from "../matcher/matcher"
 
 
@@ -10,7 +12,10 @@ export type InstallFailure<T> = {
   item: T
   error: string
 }
-
+type ExecuteInstallationsDependencies = {
+  resolvePackageManager?: typeof resolvePackageManager
+  runPackageCommand?: typeof runPackageCommand
+}
 export type InstallExecutionSummary = {
   packageManager: PackageManager
   preferredPackageManager: PackageManager
@@ -121,10 +126,7 @@ function formatInstallFailure(error: unknown, args: string[]) {
   return `${message}. Try manually with: ${formatManualInstallCommand(args)}`
 }
 
-type ExecuteInstallationsDependencies = {
-  resolvePackageManager?: typeof resolvePackageManager
-  runPackageCommand?: typeof runPackageCommand
-}
+
 
 export async function executeInstallations({
   project,
@@ -203,4 +205,21 @@ export async function executeInstallations({
   }
 
   return summary
+}
+
+
+export function agentOptionsWithHints(agents: AgentOption[]) {
+  return agents.map((a) => ({
+    value: a.value,
+    label: a.globalOnly ? `${a.label} ${pc.dim("(global only)")}` : a.label,
+  }))
+}
+
+export function warnGlobalOnlyAgents(selected: string[], agents: AgentOption[]) {
+  const globalOnlyMap = new Map(agents.filter((a) => a.globalOnly).map((a) => [a.value, a.label]))
+  const picked = selected.filter((v) => globalOnlyMap.has(v))
+  if (picked.length > 0) {
+    const names = picked.map((v) => pc.bold(globalOnlyMap.get(v)!)).join(", ")
+    log.warn(`${names} — global install only (no project-level config)`)
+  }
 }

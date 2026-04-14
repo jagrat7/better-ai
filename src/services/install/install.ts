@@ -1,27 +1,10 @@
 import { log, multiselect, outro, spinner } from "@clack/prompts"
 import pc from "picocolors"
 import { detectService, type DetectInput, type DetectJson, type DetectResult } from "../detector/detect"
-import { executeInstallations } from "./install-utils"
+import { agentOptionsWithHints, executeInstallations, warnGlobalOnlyAgents } from "./install-utils"
 import { mcpAgents, skillAgents, defaultMcpAgents, defaultSkillAgents } from "../../registry/agents"
-import type { AgentOption } from "../../registry/types"
-
-function agentOptionsWithHints(agents: AgentOption[]) {
-  return agents.map((a) => ({
-    value: a.value,
-    label: a.globalOnly ? `${a.label} ${pc.dim("(global only)")}` : a.label,
-  }))
-}
-
-function warnGlobalOnlyAgents(selected: string[], agents: AgentOption[]) {
-  const globalOnlyMap = new Map(agents.filter((a) => a.globalOnly).map((a) => [a.value, a.label]))
-  const picked = selected.filter((v) => globalOnlyMap.has(v))
-  if (picked.length > 0) {
-    const names = picked.map((v) => pc.bold(globalOnlyMap.get(v)!)).join(", ")
-    log.warn(`${names} — global install only (no project-level config)`)
-  }
-}
 import { promptWithCancel } from "../utils"
-import type { ServiceI } from "../service.inerface"
+import type { ServiceI } from "../service.interface"
 import { theme } from "../../components/theme"
 
 export type InstallInput = DetectInput & {
@@ -79,9 +62,9 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
 
     const resolvedAgents = agent
       ? await this.resolveAgents(agent, {
-          hasServers: availableServers.length > 0,
-          hasSkills: availableSkills.length > 0,
-        })
+        hasServers: availableServers.length > 0,
+        hasSkills: availableSkills.length > 0,
+      })
       : null
 
     if (auto) {
@@ -275,15 +258,15 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
   ): Promise<Pick<InstallResult, "selectedServers" | "selectedSkills" | "selectedMcpAgents" | "selectedSkillAgents"> | null> {
     const selectedServerKeys = result.servers.length > 0
       ? await promptWithCancel(() => multiselect({
-          message: "Select MCP servers to install",
-          options: result.servers.map((server) => ({
-            value: server.key,
-            label: server.label,
-            hint: server.name,
-          })),
-          initialValues: result.servers.map((server) => server.key),
-          required: false,
-        }))
+        message: "Select MCP servers to install",
+        options: result.servers.map((server) => ({
+          value: server.key,
+          label: server.label,
+          hint: server.name,
+        })),
+        initialValues: result.servers.map((server) => server.key),
+        required: false,
+      }))
       : []
 
     if (!selectedServerKeys) {
@@ -293,11 +276,11 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
     const selectedMcpAgents = preResolvedAgents?.mcp
       ?? (selectedServerKeys.length > 0
         ? await promptWithCancel(() => multiselect({
-            message: "Select agents to install MCP servers to",
-            options: agentOptionsWithHints(mcpAgents),
-            initialValues: defaultMcpAgents,
-            required: false,
-          }))
+          message: "Select agents to install MCP servers to",
+          options: agentOptionsWithHints(mcpAgents),
+          initialValues: defaultMcpAgents,
+          required: false,
+        }))
         : [])
 
     if (!selectedMcpAgents) {
@@ -319,13 +302,13 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
 
     const selectedSkillKeys = skillOptions.length > 0
       ? await promptWithCancel(() => multiselect({
-          message: "Select skills to install",
-          options: skillOptions,
-          initialValues: skillOptions
-            .filter((opt) => !opt.installed)
-            .map((opt) => opt.value),
-          required: false,
-        }))
+        message: "Select skills to install",
+        options: skillOptions,
+        initialValues: skillOptions
+          .filter((opt) => !opt.installed)
+          .map((opt) => opt.value),
+        required: false,
+      }))
       : []
 
     if (!selectedSkillKeys) {
@@ -335,11 +318,11 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
     const selectedSkillAgents = preResolvedAgents?.skill
       ?? (selectedSkillKeys.length > 0
         ? await promptWithCancel(() => multiselect({
-            message: "Select agents to install skills to",
-            options: skillAgents,
-            initialValues: defaultSkillAgents,
-            required: false,
-          }))
+          message: "Select agents to install skills to",
+          options: skillAgents,
+          initialValues: defaultSkillAgents,
+          required: false,
+        }))
         : [])
 
     if (!selectedSkillAgents) {

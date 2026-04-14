@@ -3,7 +3,7 @@ import { join } from "node:path"
 import type { McpServerEntry, SkillEntry, WhenCondition } from "../../registry/types"
 import { mcpServers } from "../../registry/mcp-servers"
 import { skills } from "../../registry/skills"
-import type { ServiceI } from "../service.inerface"
+import type { ServiceI } from "../service.interface"
 
 export type ResolvedSkillEntry = Omit<SkillEntry, "conditionalSkills"> & {
   resolvedSkills: string[]
