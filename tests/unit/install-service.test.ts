@@ -37,7 +37,9 @@ test("run errors when auto mode has no agent", async () => {
     throw new Error(`exit:${code ?? 0}`)
   }) as never)
 
-  await expect(service.run({ project: detectedResult.project, auto: true })).rejects.toThrow("exit:1")
+  await expect(service.run({ project: detectedResult.project, auto: true })).rejects.toThrow(
+    "exit:1",
+  )
 })
 
 test("run passes only skills to prompt in skills-only scope", async () => {

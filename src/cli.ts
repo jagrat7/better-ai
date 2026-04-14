@@ -11,7 +11,7 @@ import { renderHeader } from "./components/header"
 const t = initTRPC.meta<TrpcCliMeta>().create()
 
 const procedure = t.procedure.use(async ({ getRawInput, next }) => {
-  const opts = await getRawInput() as Record<string, unknown> | undefined
+  const opts = (await getRawInput()) as Record<string, unknown> | undefined
   if (opts && !opts.json && !process.stdout.isTTY) {
     opts.json = true
   }
@@ -23,12 +23,12 @@ const procedure = t.procedure.use(async ({ getRawInput, next }) => {
 
 const router = t.router({
   detect: procedure
-    .meta({ description: "Detect project stack and matching MCP servers + skills"})
+    .meta({ description: "Detect project stack and matching MCP servers + skills" })
     .input(
       z.object({
         project: z.string().optional().describe("Path to project directory"),
         json: z.boolean().optional().describe("Output as JSON"),
-      })
+      }),
     )
     .mutation(async ({ input }) => {
       await detect({
@@ -43,10 +43,13 @@ const router = t.router({
         project: z.string().optional().describe("Path to project directory"),
         json: z.boolean().optional().describe("Output as JSON"),
         auto: z.boolean().optional().describe("Auto-approve installation"),
-        agent: z.array(z.string()).optional().describe("Agents to install to (e.g. cursor, claude-code)"),
+        agent: z
+          .array(z.string())
+          .optional()
+          .describe("Agents to install to (e.g. cursor, claude-code)"),
         skills: z.boolean().optional().describe("Include only skills in installation"),
         mcp: z.boolean().optional().describe("Include only MCP servers in installation"),
-      })
+      }),
     )
     .mutation(async ({ input }) => {
       await install({

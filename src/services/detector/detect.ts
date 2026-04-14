@@ -50,12 +50,22 @@ export const detectService = {
   json(result: DetectResult): DetectJson {
     return {
       deps: [...result.deps],
-      mcpServers: result.servers.map((server) => ({ key: server.key, label: server.label, name: server.name })),
-      skills: result.matched.map((skill) => ({ source: skill.source, label: skill.label, skills: skill.resolvedSkills })),
+      mcpServers: result.servers.map((server) => ({
+        key: server.key,
+        label: server.label,
+        name: server.name,
+      })),
+      skills: result.matched.map((skill) => ({
+        source: skill.source,
+        label: skill.label,
+        skills: skill.resolvedSkills,
+      })),
     }
   },
   command(result: DetectResult): void {
-    log.info(`Found ${pc.bold(result.deps.size.toString())} dependencies in ${pc.dim(result.project)}`)
+    log.info(
+      `Found ${pc.bold(result.deps.size.toString())} dependencies in ${pc.dim(result.project)}`,
+    )
 
     if (result.servers.length > 0) {
       log.success(pc.bold("MCP Servers"))
@@ -68,7 +78,9 @@ export const detectService = {
       log.success(pc.bold("Skills"))
       for (const skill of result.matched) {
         const status = skill.installed ? pc.green(" [installed]") : ""
-        log.message(`  ${theme.bullet} ${skill.label} ${theme.hint(`— ${skill.resolvedSkills.length} skills`)}${status}`)
+        log.message(
+          `  ${theme.bullet} ${skill.label} ${theme.hint(`— ${skill.resolvedSkills.length} skills`)}${status}`,
+        )
       }
     }
 

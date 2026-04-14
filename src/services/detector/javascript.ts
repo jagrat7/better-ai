@@ -48,8 +48,7 @@ export async function detectNodeDeps(projectPath: string, deps: Set<string>): Pr
       try {
         const workspacePkg: PackageJson = JSON.parse(await readFile(workspacePkgPath, "utf-8"))
         collectNodeDeps(workspacePkg, deps)
-      } catch {
-      }
+      } catch {}
     }
   }
 

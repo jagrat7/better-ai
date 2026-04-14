@@ -12,11 +12,14 @@ export type ResolvedSkillEntry = Omit<SkillEntry, "conditionalSkills"> & {
 
 type SkillsLockFile = {
   version: number
-  skills: Record<string, {
-    source: string
-    sourceType: string
-    computedHash: string
-  }>
+  skills: Record<
+    string,
+    {
+      source: string
+      sourceType: string
+      computedHash: string
+    }
+  >
 }
 
 export async function readSkillsLock(project: string): Promise<Set<string>> {
@@ -59,7 +62,10 @@ export function matchMcpServers(deps: Set<string>): McpServerEntry[] {
   return mcpServers.filter((entry) => matches(entry.when, deps))
 }
 
-export function matchSkills(deps: Set<string>, installedSkills?: Set<string>): ResolvedSkillEntry[] {
+export function matchSkills(
+  deps: Set<string>,
+  installedSkills?: Set<string>,
+): ResolvedSkillEntry[] {
   return skills
     .filter((entry) => matches(entry.when, deps))
     .map((entry) => {
@@ -68,9 +74,7 @@ export function matchSkills(deps: Set<string>, installedSkills?: Set<string>): R
         .flatMap((cs) => cs.skills)
 
       const resolvedSkills = [...entry.skills, ...extra]
-      const installed = installedSkills
-        ? resolvedSkills.some((s) => installedSkills.has(s))
-        : false
+      const installed = installedSkills ? resolvedSkills.some((s) => installedSkills.has(s)) : false
 
       return {
         source: entry.source,

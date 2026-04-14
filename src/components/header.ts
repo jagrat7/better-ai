@@ -26,8 +26,14 @@ type RGB = [number, number, number]
 const MAX_BETTER_WIDTH = Math.max(...LOGO_BETTER_LINES.map((l) => l.length))
 const MAX_AI_WIDTH = Math.max(...LOGO_AI_LINES.map((l) => l.length))
 const LOGO_WIDTH = MAX_BETTER_WIDTH + 2 + MAX_AI_WIDTH
-const BETTER_GRADIENT: [RGB, RGB] = [[200, 210, 220], [100, 110, 120]]
-const AI_GRADIENT: [RGB, RGB] = [[0, 255, 120], [0, 160, 60]]
+const BETTER_GRADIENT: [RGB, RGB] = [
+  [200, 210, 220],
+  [100, 110, 120],
+]
+const AI_GRADIENT: [RGB, RGB] = [
+  [0, 255, 120],
+  [0, 160, 60],
+]
 
 function lerp(a: number, b: number, t: number): number {
   return Math.round(a + (b - a) * t)
@@ -45,8 +51,14 @@ function renderDualLogo(): string {
   const total = LOGO_BETTER_LINES.length - 1
   return LOGO_BETTER_LINES.map((line, i) => {
     const t = i / total
-    const betterPart = gradientLine(line.padEnd(MAX_BETTER_WIDTH), lerpColor(BETTER_GRADIENT[0], BETTER_GRADIENT[1], t))
-    const aiPart = gradientLine(`  ${LOGO_AI_LINES[i] ?? ""}`, lerpColor(AI_GRADIENT[0], AI_GRADIENT[1], t))
+    const betterPart = gradientLine(
+      line.padEnd(MAX_BETTER_WIDTH),
+      lerpColor(BETTER_GRADIENT[0], BETTER_GRADIENT[1], t),
+    )
+    const aiPart = gradientLine(
+      `  ${LOGO_AI_LINES[i] ?? ""}`,
+      lerpColor(AI_GRADIENT[0], AI_GRADIENT[1], t),
+    )
     return `${betterPart}${aiPart}`
   }).join("\n")
 }
@@ -54,9 +66,7 @@ function renderDualLogo(): string {
 export function renderHeader(): string {
   const terminalWidth = process.stdout.columns ?? 80
 
-  const title = terminalWidth >= LOGO_WIDTH
-    ? renderDualLogo()
-    : theme.heading(SIMPLE)
+  const title = terminalWidth >= LOGO_WIDTH ? renderDualLogo() : theme.heading(SIMPLE)
   const subtitle = theme.hint(`  v${pkg.version} — ${pkg.description}`)
 
   return `${title}\n${subtitle}\n`

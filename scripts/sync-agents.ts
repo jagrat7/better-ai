@@ -11,10 +11,11 @@ import { resolve } from "path"
 const AGENTS_REGISTRY_PATH = resolve(import.meta.dirname ?? ".", "../src/registry/agents.ts")
 
 const ADD_MCP_TYPES_URL = "https://raw.githubusercontent.com/neondatabase/add-mcp/main/src/types.ts"
-const ADD_MCP_AGENTS_URL = "https://raw.githubusercontent.com/neondatabase/add-mcp/main/src/agents.ts"
+const ADD_MCP_AGENTS_URL =
+  "https://raw.githubusercontent.com/neondatabase/add-mcp/main/src/agents.ts"
 const SKILLS_AGENTS_URL = "https://raw.githubusercontent.com/vercel-labs/skills/main/src/agents.ts"
 
-type AgentEntry = { value: string, label: string }
+type AgentEntry = { value: string; label: string }
 
 // -- Fetch helpers --
 
@@ -50,7 +51,9 @@ async function fetchAddMcpAgents(): Promise<AgentEntry[]> {
 
   // Extract displayNames from agents record
   const displayNameMap = new Map<string, string>()
-  const dnMatches = agentsSource.matchAll(/["']?(\w[\w-]*)["']?\s*:\s*\{[^}]*displayName:\s*["']([^"']+)["']/g)
+  const dnMatches = agentsSource.matchAll(
+    /["']?(\w[\w-]*)["']?\s*:\s*\{[^}]*displayName:\s*["']([^"']+)["']/g,
+  )
   for (const m of dnMatches) {
     displayNameMap.set(m[1]!, m[2]!)
   }
@@ -90,7 +93,7 @@ async function fetchSkillsAgents(): Promise<AgentEntry[]> {
 
 // -- Parse local registry --
 
-function parseLocalAgents(): { mcpAgents: AgentEntry[], skillAgents: AgentEntry[] } {
+function parseLocalAgents(): { mcpAgents: AgentEntry[]; skillAgents: AgentEntry[] } {
   const content = readFileSync(AGENTS_REGISTRY_PATH, "utf-8")
 
   const parseLine = (line: string): AgentEntry | null => {
@@ -114,7 +117,10 @@ function parseLocalAgents(): { mcpAgents: AgentEntry[], skillAgents: AgentEntry[
 
 // -- Diff --
 
-function diffAgents(local: AgentEntry[], remote: AgentEntry[]): { added: AgentEntry[], removed: AgentEntry[] } {
+function diffAgents(
+  local: AgentEntry[],
+  remote: AgentEntry[],
+): { added: AgentEntry[]; removed: AgentEntry[] } {
   const localKeys = new Set(local.map((a) => a.value))
   const remoteKeys = new Set(remote.map((a) => a.value))
 
@@ -130,15 +136,16 @@ async function main() {
   console.log("Checking agent lists against upstream CLIs...\n")
 
   const local = parseLocalAgents()
-  console.log(`Local: ${local.mcpAgents.length} MCP agents, ${local.skillAgents.length} skill agents\n`)
+  console.log(
+    `Local: ${local.mcpAgents.length} MCP agents, ${local.skillAgents.length} skill agents\n`,
+  )
 
   // Fetch upstream
-  const [remoteMcp, remoteSkills] = await Promise.all([
-    fetchAddMcpAgents(),
-    fetchSkillsAgents(),
-  ])
+  const [remoteMcp, remoteSkills] = await Promise.all([fetchAddMcpAgents(), fetchSkillsAgents()])
 
-  console.log(`Upstream: ${remoteMcp.length} add-mcp agents, ${remoteSkills.length} skills agents\n`)
+  console.log(
+    `Upstream: ${remoteMcp.length} add-mcp agents, ${remoteSkills.length} skills agents\n`,
+  )
 
   // Diff MCP agents
   const mcpDiff = diffAgents(local.mcpAgents, remoteMcp)
@@ -164,7 +171,11 @@ async function main() {
     console.log()
   }
 
-  const totalDrift = mcpDiff.added.length + mcpDiff.removed.length + skillsDiff.added.length + skillsDiff.removed.length
+  const totalDrift =
+    mcpDiff.added.length +
+    mcpDiff.removed.length +
+    skillsDiff.added.length +
+    skillsDiff.removed.length
   if (totalDrift === 0) {
     console.log("All agent lists are up to date.")
   } else {

@@ -16,9 +16,24 @@ const packageManagerDefinitions = [
       return ["run", "--allow-all", `npm:${pkg}`, ...rest]
     },
   },
-  { manager: "bun", files: ["bun.lock", "bun.lockb", "bunfig.toml"], command: "bun", runner: "bunx" },
-  { manager: "pnpm", files: ["pnpm-lock.yaml"], command: "pnpm", getRunnerArgs: (args) => ["dlx", ...args] },
-  { manager: "yarn", files: ["yarn.lock"], command: "yarn", getRunnerArgs: (args) => ["dlx", ...args] },
+  {
+    manager: "bun",
+    files: ["bun.lock", "bun.lockb", "bunfig.toml"],
+    command: "bun",
+    runner: "bunx",
+  },
+  {
+    manager: "pnpm",
+    files: ["pnpm-lock.yaml"],
+    command: "pnpm",
+    getRunnerArgs: (args) => ["dlx", ...args],
+  },
+  {
+    manager: "yarn",
+    files: ["yarn.lock"],
+    command: "yarn",
+    getRunnerArgs: (args) => ["dlx", ...args],
+  },
   { manager: "npm", files: ["package-lock.json"], command: "npx" },
 ] as const satisfies readonly PackageManagerDefinition[]
 

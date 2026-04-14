@@ -2,19 +2,19 @@
   "name": "bttrai",
   "version": "0.1.1",
   "description": "Install MCP servers and agent skills based on your project's stack",
-  "type": "module",
   "keywords": [
-    "cli",
-    "mcp",
-    "skills",
     "agents",
+    "ai",
+    "cli",
     "developer-tools",
-    "ai"
+    "mcp",
+    "skills"
   ],
   "homepage": "https://github.com/jagrat7/better-ai#readme",
   "bugs": {
     "url": "https://github.com/jagrat7/better-ai/issues"
   },
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/jagrat7/better-ai.git"
@@ -25,6 +25,7 @@
   "files": [
     "dist"
   ],
+  "type": "module",
   "scripts": {
     "build": "bun build src/cli.ts --outfile dist/cli.mjs --target node",
     "dev": "bun run src/cli.ts",
@@ -39,13 +40,6 @@
     "sync:skills": "bun run scripts/sync-skills.ts",
     "sync:agents": "bun run scripts/sync-agents.ts"
   },
-  "license": "MIT",
-  "devDependencies": {
-    "@types/node": "^25.5.0",
-    "oxfmt": "^0.45.0",
-    "oxlint": "^1.60.0",
-    "typescript": "^5.9.3"
-  },
   "dependencies": {
     "@clack/prompts": "^1.1.0",
     "@trpc/server": "^11.13.4",
@@ -56,5 +50,11 @@
     "tinyglobby": "^0.2.15",
     "trpc-cli": "^0.13.0",
     "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "oxfmt": "^0.45.0",
+    "oxlint": "^1.60.0",
+    "typescript": "^5.9.3"
   }
 }

@@ -2,8 +2,8 @@
   "name": "next-app-fixture",
   "private": true,
   "dependencies": {
-    "next": "15.0.0",
     "ai": "4.0.0",
-    "better-auth": "1.0.0"
+    "better-auth": "1.0.0",
+    "next": "15.0.0"
   }
 }

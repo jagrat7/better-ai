@@ -1,6 +1,7 @@
 <div align="center">
 
 ![bttrai](./docs/logo.png)
+
 </div>
 <div align="center">
 
@@ -8,7 +9,7 @@
 
 </div>
 
-> *"Too lazy to look for the skills and mcps for your project?"*
+> _"Too lazy to look for the skills and mcps for your project?"_
 
 Auto-install matching MCP servers and agent skills based on your project's stack. `bttrai` scans your project dependencies, suggests relevant MCP servers and skills, and installs them into the agents you choose.
 
@@ -29,11 +30,11 @@ bttrai
 
 ## Commands
 
-| Command | Description |
-| --- | --- |
-| `bttrai` | Default install flow |
-| `bttrai detect` | Detect matching MCP servers and skills |
-| `bttrai install` | Run the install flow explicitly |
+| Command          | Description                            |
+| ---------------- | -------------------------------------- |
+| `bttrai`         | Default install flow                   |
+| `bttrai detect`  | Detect matching MCP servers and skills |
+| `bttrai install` | Run the install flow explicitly        |
 
 ## Common usage
 
@@ -62,14 +63,14 @@ npx bttrai install --mcp
 
 ## Options
 
-| Option | Applies to | Description |
-| --- | --- | --- |
-| `--project <path>` | `detect`, `install` | Target a different project directory |
-| `--json` | `detect`, `install` | Output machine-readable JSON |
-| `--auto` | `install` | Skip prompts and auto-select detected matches |
-| `--agent <name>` | `install` | Choose one or more agents to install into |
-| `--skills` | `install` | Only include skills |
-| `--mcp` | `install` | Only include MCP servers |
+| Option             | Applies to          | Description                                   |
+| ------------------ | ------------------- | --------------------------------------------- |
+| `--project <path>` | `detect`, `install` | Target a different project directory          |
+| `--json`           | `detect`, `install` | Output machine-readable JSON                  |
+| `--auto`           | `install`           | Skip prompts and auto-select detected matches |
+| `--agent <name>`   | `install`           | Choose one or more agents to install into     |
+| `--skills`         | `install`           | Only include skills                           |
+| `--mcp`            | `install`           | Only include MCP servers                      |
 
 ## Notes
 
@@ -87,8 +88,7 @@ npx bttrai install --mcp
 
 ## Supported agent categories
 
-| Category | Examples |
-| --- | --- |
-| MCP targets | Cursor, Claude Code, VS Code, Zed, Gemini CLI |
+| Category      | Examples                                                |
+| ------------- | ------------------------------------------------------- |
+| MCP targets   | Cursor, Claude Code, VS Code, Zed, Gemini CLI           |
 | Skill targets | Cursor, Claude Code, GitHub Copilot, Continue, Windsurf |
-

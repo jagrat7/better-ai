@@ -2,7 +2,10 @@ import { afterEach, expect, test } from "bun:test"
 import { writeFileSync } from "node:fs"
 import type { McpServerEntry } from "../../src/registry/types"
 import type { ResolvedSkillEntry } from "../../src/services/matcher/matcher"
-import { executeInstallations, resolvePackageManager } from "../../src/services/install/install-utils"
+import {
+  executeInstallations,
+  resolvePackageManager,
+} from "../../src/services/install/install-utils"
 import { createTempDir, removeTempDir } from "../helpers/temp-dir"
 
 const tempDirs: string[] = []
@@ -18,7 +21,10 @@ test("resolvePackageManager falls back to npm when preferred runner is unavailab
   tempDirs.push(project)
   writeFileSync(`${project}/bun.lock`, "")
 
-  const result = await resolvePackageManager(project, async (packageManager) => packageManager === "npm")
+  const result = await resolvePackageManager(
+    project,
+    async (packageManager) => packageManager === "npm",
+  )
 
   expect(result).toEqual({
     preferredPackageManager: "bun",
@@ -71,6 +77,10 @@ test("executeInstallations includes manual npx guidance when installer commands 
   expect(summary.packageManager).toBe("npm")
   expect(summary.preferredPackageManager).toBe("bun")
   expect(summary.usedFallback).toBe(true)
-  expect(summary.skills.failed[0]?.error).toContain("Try manually with: npx skills@latest add vercel/ai --skill ai-sdk --agent cursor -y")
-  expect(summary.mcp.failed[0]?.error).toContain("Try manually with: npx add-mcp@latest @upstash/context7-mcp --name context7 -a cursor -y")
+  expect(summary.skills.failed[0]?.error).toContain(
+    "Try manually with: npx skills@latest add vercel/ai --skill ai-sdk --agent cursor -y",
+  )
+  expect(summary.mcp.failed[0]?.error).toContain(
+    "Try manually with: npx add-mcp@latest @upstash/context7-mcp --name context7 -a cursor -y",
+  )
 })

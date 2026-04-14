@@ -3,10 +3,13 @@ import { join } from "node:path"
 import { log } from "@clack/prompts"
 import { execa } from "execa"
 import pc from "picocolors"
-import { getPackageManagerConfig, packageManagers, type PackageManager } from "../../registry/package-managers"
+import {
+  getPackageManagerConfig,
+  packageManagers,
+  type PackageManager,
+} from "../../registry/package-managers"
 import type { AgentOption, McpServerEntry } from "../../registry/types"
 import type { ResolvedSkillEntry } from "../matcher/matcher"
-
 
 export type InstallFailure<T> = {
   item: T
@@ -30,7 +33,6 @@ export type InstallExecutionSummary = {
   }
 }
 
-
 async function pathExists(path: string) {
   try {
     await access(path)
@@ -42,7 +44,7 @@ async function pathExists(path: string) {
 
 export async function detectPackageManager(project: string): Promise<PackageManager> {
   for (const { files, manager } of packageManagers) {
-    const exists = await Promise.all(files.map(f => pathExists(join(project, f))))
+    const exists = await Promise.all(files.map((f) => pathExists(join(project, f))))
     if (exists.some(Boolean)) {
       return manager
     }
@@ -70,7 +72,11 @@ export async function isPackageManagerAvailable(packageManager: PackageManager):
 export async function resolvePackageManager(
   project: string,
   isAvailable: (packageManager: PackageManager) => Promise<boolean> = isPackageManagerAvailable,
-): Promise<{ preferredPackageManager: PackageManager, packageManager: PackageManager, usedFallback: boolean }> {
+): Promise<{
+  preferredPackageManager: PackageManager
+  packageManager: PackageManager
+  usedFallback: boolean
+}> {
   const preferredPackageManager = await detectPackageManager(project)
 
   if (await isAvailable(preferredPackageManager)) {
@@ -81,7 +87,7 @@ export async function resolvePackageManager(
     }
   }
 
-  if (preferredPackageManager !== "npm" && await isAvailable("npm")) {
+  if (preferredPackageManager !== "npm" && (await isAvailable("npm"))) {
     return {
       preferredPackageManager,
       packageManager: "npm",
@@ -96,7 +102,10 @@ export async function resolvePackageManager(
   }
 }
 
-function getPackageRunnerArgs(packageManager: PackageManager, args: string[]): { command: string, args: string[] } {
+function getPackageRunnerArgs(
+  packageManager: PackageManager,
+  args: string[],
+): { command: string; args: string[] } {
   const metadata = getPackageManagerConfig(packageManager)
   const command = metadata.runner ?? metadata.command
   return {
@@ -126,24 +135,26 @@ function formatInstallFailure(error: unknown, args: string[]) {
   return `${message}. Try manually with: ${formatManualInstallCommand(args)}`
 }
 
-
-
-export async function executeInstallations({
-  project,
-  selectedSkills,
-  selectedServers,
-  mcpAgents,
-  skillAgents,
-}: {
-  project: string
-  selectedSkills: ResolvedSkillEntry[]
-  selectedServers: McpServerEntry[]
-  mcpAgents: string[]
-  skillAgents: string[]
-}, dependencies: ExecuteInstallationsDependencies = {}): Promise<InstallExecutionSummary> {
+export async function executeInstallations(
+  {
+    project,
+    selectedSkills,
+    selectedServers,
+    mcpAgents,
+    skillAgents,
+  }: {
+    project: string
+    selectedSkills: ResolvedSkillEntry[]
+    selectedServers: McpServerEntry[]
+    mcpAgents: string[]
+    skillAgents: string[]
+  },
+  dependencies: ExecuteInstallationsDependencies = {},
+): Promise<InstallExecutionSummary> {
   const resolvePackageManagerFn = dependencies.resolvePackageManager ?? resolvePackageManager
   const runPackageCommandFn = dependencies.runPackageCommand ?? runPackageCommand
-  const { packageManager, preferredPackageManager, usedFallback } = await resolvePackageManagerFn(project)
+  const { packageManager, preferredPackageManager, usedFallback } =
+    await resolvePackageManagerFn(project)
   const summary: InstallExecutionSummary = {
     packageManager,
     preferredPackageManager,
@@ -206,7 +217,6 @@ export async function executeInstallations({
 
   return summary
 }
-
 
 export function agentOptionsWithHints(agents: AgentOption[]) {
   return agents.map((a) => ({
