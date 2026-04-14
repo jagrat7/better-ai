@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises"
 import { join } from "path"
 import { parse as parseTOML } from "smol-toml"
 
-const PEP508_SPLIT = /[>=<~;\[\s]/
+const PEP508_SPLIT = /[>=<~;[\s]/
 
 function normalizePyName(name: string): string {
   return name.trim().toLowerCase()
