@@ -13,6 +13,10 @@
 
 A CLI that auto-installs MCP servers and skills to your agent(s) based on your project's stack. It uses [skills](https://github.com/vercel-labs/skills) and [add-mcp](https://github.com/neondatabase/add-mcp) CLIs under the hood.
 
+```bash
+npx bttrai
+```
+
 ## Why better-ai
 
 This initially started because I was too lazy to add individual skills and MCP installs for my individual projects, and as a result I was unnecessarily inflating my context window by installing everything globally. As I was building this, I hope this project will provide a way to **democratize** and **standardize** development with AI. The standardization part will require community support to maintain a legit list/registry of MCPs and skills. Check out the [contributing guide](.github/CONTRIBUTING.md) for more info. I used the following sources to build the registry of MCPs and skills:
@@ -25,8 +29,8 @@ This initially started because I was too lazy to add individual skills and MCP i
 
 ```bash
 
-# Run the full install flow
-npx bttrai
+# Run the full install flow in your current directory
+npx bttrai 
 
 # Install for a different project directory
 npx bttrai --project ./my-app
@@ -68,16 +72,21 @@ npx bttrai detect --json
 | `--skills`         | `install`           | Only include skills                           |
 | `--mcp`            | `install`           | Only include MCP servers                      |
 
-> [!Note]
->
-> - `--auto` requires at least one `--agent`.
-> - If your project prefers `bun`, `pnpm`, `yarn`, or `deno` but that runner is not available, `bttrai` falls back to `npx` automatically.
+> [!IMPORTANT]
+> `--auto` requires at least one `--agent`. I also wouldn't recommend using it unless you're sure.
+> 
 
-## Future features
+## Notes
 
-- [ ] More MCPs
+- By default, `bttrai` is intended to install skills and MCPs in your current project/directory.
+- Some agents only have global MCP installations, so in those cases the install may need to be global instead of project-level.
+- There is partial support for Python projects, but it's not fully implmented.
+- If your project prefers `bun`, `pnpm`, `yarn`, or `deno` but that runner is not available, `bttrai` falls back to `npx` automatically.
+
+## Upcoming features
+
 - [ ] Better python support
-- [ ] Presets - you can define presets you like, for example a frontend preset with the Shadcn MCP with impeccable and UI/UX pro skill
+- [ ] Presets - you can define presets you like, for example a frontend preset with the Shadcn MCP with impeccable and UI/UX pro skill. this would require a global config file for `bttrai` 
 - [ ] More languages
 - [ ] Maybe a better way to contribute to registries
 - [ ] Skills + CLI alternative to MCPs

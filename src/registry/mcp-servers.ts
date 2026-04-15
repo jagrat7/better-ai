@@ -47,6 +47,13 @@ export const mcpServers: McpServerEntry[] = [
     when: { deps: ["next"] },
   },
   {
+    key: "playwright",
+    label: "Playwright",
+    name: "playwright",
+    target: "npx -y @playwright/mcp@latest",
+    when: { deps: ["@playwright/test"] },
+  },
+  {
     key: "nuxt-docs",
     label: "Nuxt Docs",
     name: "nuxt",
@@ -96,6 +103,29 @@ export const mcpServers: McpServerEntry[] = [
     when: { deps: ["@supabase/supabase-js"] },
   },
   {
+    key: "prisma",
+    label: "Prisma",
+    name: "prisma",
+    target: "npx -y prisma mcp",
+    when: { deps: ["prisma", "@prisma/client"] },
+  },
+  {
+    key: "sentry",
+    label: "Sentry",
+    name: "sentry",
+    target: "https://mcp.sentry.dev/mcp",
+    when: {
+      deps: [
+        "@sentry/node",
+        "@sentry/browser",
+        "@sentry/react",
+        "@sentry/nextjs",
+        "@sentry/vue",
+        "@sentry/sveltekit",
+      ],
+    },
+  },
+  {
     key: "better-auth",
     label: "Better Auth",
     name: "better-auth",
@@ -117,6 +147,29 @@ export const mcpServers: McpServerEntry[] = [
     name: "expo-mcp",
     target: "https://mcp.expo.dev/mcp",
     when: { deps: ["expo"] },
+  },
+  {
+    key: "firebase",
+    label: "Firebase",
+    name: "firebase",
+    target: "npx -y firebase-tools@latest mcp",
+    when: { deps: ["firebase", "firebase-admin", "@firebase/app"] },
+  },
+  {
+    key: "vercel",
+    label: "Vercel",
+    name: "vercel",
+    target: "https://mcp.vercel.com",
+    when: {
+      deps: [
+        "vercel",
+        "@vercel/analytics",
+        "@vercel/blob",
+        "@vercel/edge-config",
+        "@vercel/kv",
+        "@vercel/postgres",
+      ],
+    },
   },
   {
     key: "polar",
