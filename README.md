@@ -10,14 +10,16 @@
 </div>
 
 ## Overview
+
 A CLI that auto-installs MCP servers and skills to your agent(s) based on your project's stack. It uses [skills](https://github.com/vercel-labs/skills) and [add-mcp](https://github.com/neondatabase/add-mcp) CLIs under the hood.
 
 ## Why better-ai
-This initially started because I was too lazy to add individual skills and MCP installs for my individual projects, and as a result I was unnecessarily inflating my context window by installing everything globally. As I was building this, I hope this project will provide a way to **democratize** and **standardize** development with AI. The standardization part will require community support to maintain a legit list/registry of MCPs and skills. Check out the [contributing guide](.github/CONTRIBUTING.md) for more info. I used the following sources to build the  registry of MCPs and skills:
+
+This initially started because I was too lazy to add individual skills and MCP installs for my individual projects, and as a result I was unnecessarily inflating my context window by installing everything globally. As I was building this, I hope this project will provide a way to **democratize** and **standardize** development with AI. The standardization part will require community support to maintain a legit list/registry of MCPs and skills. Check out the [contributing guide](.github/CONTRIBUTING.md) for more info. I used the following sources to build the registry of MCPs and skills:
+
 - [Aman's list in create-better-t-stack](create-better-t-stack)
 - [Vercel's official skills registry](https://skills.sh/official)
-- Manual search 
-
+- Manual search
 
 ## Usage
 
@@ -45,13 +47,14 @@ npx bttrai detect
 npx bttrai detect --json
 
 ```
+
 ### Commands
 
-| Command          | Description                            |
-| ---------------- | -------------------------------------- |
-| `bttrai`         | Default install flow                   |
-| `bttrai detect`  | Detect matching MCP servers and skills |
-| `bttrai install` | Run the install flow explicitly -  this is the default       | 
+| Command          | Description                                           |
+| ---------------- | ----------------------------------------------------- |
+| `bttrai`         | Default install flow                                  |
+| `bttrai detect`  | Detect matching MCP servers and skills                |
+| `bttrai install` | Run the install flow explicitly - this is the default |
 
 ### Options
 
@@ -66,12 +69,12 @@ npx bttrai detect --json
 | `--mcp`            | `install`           | Only include MCP servers                      |
 
 > [!Note]
+>
 > - `--auto` requires at least one `--agent`.
 > - If your project prefers `bun`, `pnpm`, `yarn`, or `deno` but that runner is not available, `bttrai` falls back to `npx` automatically.
->
-
 
 ## Future features
+
 - [ ] More MCPs
 - [ ] Better python support
 - [ ] Presets - you can define presets you like, for example a frontend preset with the Shadcn MCP with impeccable and UI/UX pro skill

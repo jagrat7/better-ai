@@ -15,7 +15,7 @@ const procedure = t.procedure.use(async ({ getRawInput, next }) => {
   if (opts && !opts.json && !process.stdout.isTTY) {
     opts.json = true
   }
-  if (process.stdout.isTTY) {
+  if (process.stdout.isTTY && !opts?.json) {
     console.error(renderHeader())
   }
   return next()
