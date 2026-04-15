@@ -19,7 +19,9 @@ npx bttrai
 
 ## Why better-ai
 
-This initially started because I was too lazy to add individual skills and MCP installs for my individual projects, and as a result I was unnecessarily inflating my context window by installing everything globally. As I was building this, I hope this project will provide a way to **democratize** and **standardize** development with AI. The standardization part will require community support to maintain a legit list/registry of MCPs and skills. Check out the [contributing guide](.github/CONTRIBUTING.md) for more info. I used the following sources to build the registry of MCPs and skills:
+This initially started because I was too lazy to add individual skills and MCP installs for my individual projects, and as a result I was unnecessarily inflating my context window (system prompt) by installing everything globally.  Research like [this paper](https://arxiv.org/abs/2505.10554) has shown that overloaded system prompts hurt performance. By scoping installs to the project level, `bttrai` keeps your context window lean and relevant.
+
+As I was building this, I hope this project will provide a way to **democratize** and **standardize** development with AI. The standardization part will require community support to maintain a legit list/registry of MCPs and skills. Check out the [contributing guide](.github/CONTRIBUTING.md) for more info. I used the following sources to build the registry of MCPs and skills:
 
 - [Aman's list in create-better-t-stack](create-better-t-stack)
 - [Vercel's official skills registry](https://skills.sh/official)
@@ -87,6 +89,7 @@ npx bttrai detect --json
 
 - [ ] Better python support
 - [ ] Presets - you can define presets you like, for example a frontend preset with the Shadcn MCP with impeccable and UI/UX pro skill. this would require a global config file for `bttrai` 
+- [ ] Detect existing MCPs in your agent
 - [ ] More languages
 - [ ] Maybe a better way to contribute to registries
 - [ ] Skills + CLI alternative to MCPs
