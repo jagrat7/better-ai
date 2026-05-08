@@ -3,6 +3,7 @@ import pc from "picocolors"
 import { detectDeps } from "./utils"
 import { matchMcpServers, matchSkills, readSkillsLock } from "../matcher/matcher"
 import type { ServiceI } from "../service.interface"
+import type { McpServerJson, SkillJson } from "../shared"
 import { theme } from "../../components/theme"
 
 export type DetectInput = {
@@ -22,16 +23,8 @@ export type DetectResult = {
 
 export type DetectJson = {
   deps: string[]
-  mcpServers: Array<{
-    key: string
-    label: string
-    name: string
-  }>
-  skills: Array<{
-    source: string
-    label: string
-    skills: string[]
-  }>
+  mcpServers: McpServerJson[]
+  skills: SkillJson[]
 }
 
 export const detectService = {

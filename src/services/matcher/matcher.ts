@@ -4,6 +4,7 @@ import type { McpServerEntry, SkillEntry, WhenCondition } from "../../registry/t
 import { mcpServers } from "../../registry/mcp-servers"
 import { skills } from "../../registry/skills"
 import type { ServiceI } from "../service.interface"
+import type { McpServerJson, SkillJson } from "../shared"
 
 export type ResolvedSkillEntry = Omit<SkillEntry, "conditionalSkills"> & {
   resolvedSkills: string[]
@@ -32,16 +33,8 @@ export type MatcherResult = {
 }
 
 export type MatcherJson = {
-  mcpServers: Array<{
-    key: string
-    label: string
-    name: string
-  }>
-  skills: Array<{
-    source: string
-    label: string
-    skills: string[]
-  }>
+  mcpServers: McpServerJson[]
+  skills: SkillJson[]
 }
 export async function readSkillsLock(project: string): Promise<Set<string>> {
   try {
@@ -52,7 +45,6 @@ export async function readSkillsLock(project: string): Promise<Set<string>> {
     return new Set()
   }
 }
-
 
 function matches(when: WhenCondition, deps: Set<string>): boolean {
   return when.deps.includes("*") || when.deps.some((d) => deps.has(d))
