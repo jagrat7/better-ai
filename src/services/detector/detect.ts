@@ -1,7 +1,7 @@
 import { log, outro } from "@clack/prompts"
 import pc from "picocolors"
 import { detectDeps } from "./utils"
-import { matchMcpServers, matchSkills, readSkillsLock } from "../matcher/matcher"
+import { matcherService, type MatcherResult } from "../matcher/matcher"
 import type { ServiceI } from "../service.interface"
 import type { McpServerJson, SkillJson } from "../shared"
 import { theme } from "../../components/theme"
@@ -17,8 +17,8 @@ type DetectCommandInput = DetectInput & {
 export type DetectResult = {
   project: string
   deps: Set<string>
-  servers: ReturnType<typeof matchMcpServers>
-  matched: ReturnType<typeof matchSkills>
+  servers: MatcherResult["servers"]
+  matched: MatcherResult["skills"]
 }
 
 export type DetectJson = {
@@ -30,15 +30,14 @@ export type DetectJson = {
 export const detectService = {
   async run({ project }: DetectInput): Promise<DetectResult> {
     const deps = await detectDeps(project)
-    const installedSkills = await readSkillsLock(project)
-    const servers = matchMcpServers(deps)
-    const matched = matchSkills(deps, installedSkills)
+    const installedSkills = await matcherService.readSkillsLock(project)
+    const matches = matcherService.run({ deps, installedSkills })
 
     return {
       project,
       deps,
-      servers,
-      matched,
+      servers: matches.servers,
+      matched: matches.skills,
     }
   },
   json(result: DetectResult): DetectJson {

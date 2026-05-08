@@ -1,10 +1,10 @@
 import { readFile } from "node:fs/promises"
 import { join } from "node:path"
-import type { McpServerEntry, SkillEntry, WhenCondition } from "../../registry/types"
+import type { McpServerEntry, SkillEntry } from "../../registry/types"
 import { mcpServers } from "../../registry/mcp-servers"
 import { skills } from "../../registry/skills"
-import type { ServiceI } from "../service.interface"
 import type { McpServerJson, SkillJson } from "../shared"
+import { matches } from "./utils"
 
 export type ResolvedSkillEntry = Omit<SkillEntry, "conditionalSkills"> & {
   resolvedSkills: string[]
@@ -25,6 +25,7 @@ type SkillsLockFile = {
 
 export type MatcherInput = {
   deps: Set<string>
+  installedSkills?: Set<string>
 }
 
 export type MatcherResult = {
@@ -36,54 +37,45 @@ export type MatcherJson = {
   mcpServers: McpServerJson[]
   skills: SkillJson[]
 }
-export async function readSkillsLock(project: string): Promise<Set<string>> {
-  try {
-    const raw = await readFile(join(project, "skills-lock.json"), "utf-8")
-    const lock: SkillsLockFile = JSON.parse(raw)
-    return new Set(Object.keys(lock.skills ?? {}))
-  } catch {
-    return new Set()
-  }
-}
-
-function matches(when: WhenCondition, deps: Set<string>): boolean {
-  return when.deps.includes("*") || when.deps.some((d) => deps.has(d))
-}
-
-export function matchMcpServers(deps: Set<string>): McpServerEntry[] {
-  return mcpServers.filter((entry) => matches(entry.when, deps))
-}
-
-export function matchSkills(
-  deps: Set<string>,
-  installedSkills?: Set<string>,
-): ResolvedSkillEntry[] {
-  return skills
-    .filter((entry) => matches(entry.when, deps))
-    .map((entry) => {
-      const extra = (entry.conditionalSkills ?? [])
-        .filter((cs) => matches(cs.when, deps))
-        .flatMap((cs) => cs.skills)
-
-      const resolvedSkills = [...entry.skills, ...extra]
-      const installed = installedSkills ? resolvedSkills.some((s) => installedSkills.has(s)) : false
-
-      return {
-        source: entry.source,
-        label: entry.label,
-        skills: entry.skills,
-        when: entry.when,
-        resolvedSkills,
-        installed,
-      }
-    })
-}
 
 export const matcherService = {
-  run({ deps }: MatcherInput): MatcherResult {
+  async readSkillsLock(project: string): Promise<Set<string>> {
+    try {
+      const raw = await readFile(join(project, "skills-lock.json"), "utf-8")
+      const lock: SkillsLockFile = JSON.parse(raw)
+      return new Set(Object.keys(lock.skills ?? {}))
+    } catch {
+      return new Set()
+    }
+  },
+  matchMcpServers(deps: Set<string>): McpServerEntry[] {
+    return mcpServers.filter((entry) => matches(entry.when, deps))
+  },
+  matchSkills(deps: Set<string>, installedSkills?: Set<string>): ResolvedSkillEntry[] {
+    return skills
+      .filter((entry) => matches(entry.when, deps))
+      .map((entry) => {
+        const extra = (entry.conditionalSkills ?? [])
+          .filter((cs) => matches(cs.when, deps))
+          .flatMap((cs) => cs.skills)
+
+        const resolvedSkills = [...entry.skills, ...extra]
+        const installed = installedSkills ? resolvedSkills.some((s) => installedSkills.has(s)) : false
+
+        return {
+          source: entry.source,
+          label: entry.label,
+          skills: entry.skills,
+          when: entry.when,
+          resolvedSkills,
+          installed,
+        }
+      })
+  },
+  run({ deps, installedSkills }: MatcherInput): MatcherResult {
     return {
-      servers: matchMcpServers(deps),
-      skills: matchSkills(deps),
+      servers: matcherService.matchMcpServers(deps),
+      skills: matcherService.matchSkills(deps, installedSkills),
     }
   },
   json(result: MatcherResult): MatcherJson {
@@ -103,4 +95,4 @@ export const matcherService = {
   command(result: MatcherResult): void {
     console.log(JSON.stringify(matcherService.json(result), null, 2))
   },
-} satisfies ServiceI<MatcherInput, MatcherResult, MatcherJson>
+}

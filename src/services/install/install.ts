@@ -6,7 +6,7 @@ import {
   type DetectJson,
   type DetectResult,
 } from "../detector/detect"
-import { agentOptionsWithHints, executeInstallations, warnGlobalOnlyAgents } from "./install-utils"
+import { agentOptionsWithHints, executeInstallations, warnGlobalOnlyAgents } from "./utils"
 import { mcpAgents, skillAgents, defaultMcpAgents, defaultSkillAgents } from "../../registry/agents"
 import { promptWithCancel } from "../utils"
 import type { ServiceI } from "../service.interface"

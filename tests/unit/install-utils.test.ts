@@ -5,7 +5,7 @@ import type { ResolvedSkillEntry } from "../../src/services/matcher/matcher"
 import {
   executeInstallations,
   resolvePackageManager,
-} from "../../src/services/install/install-utils"
+} from "../../src/services/install/utils"
 import { createTempDir, removeTempDir } from "../helpers/temp-dir"
 
 const tempDirs: string[] = []
