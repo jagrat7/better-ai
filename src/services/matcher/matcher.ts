@@ -22,16 +22,6 @@ type SkillsLockFile = {
   >
 }
 
-export async function readSkillsLock(project: string): Promise<Set<string>> {
-  try {
-    const raw = await readFile(join(project, "skills-lock.json"), "utf-8")
-    const lock: SkillsLockFile = JSON.parse(raw)
-    return new Set(Object.keys(lock.skills ?? {}))
-  } catch {
-    return new Set()
-  }
-}
-
 export type MatcherInput = {
   deps: Set<string>
 }
@@ -53,6 +43,16 @@ export type MatcherJson = {
     skills: string[]
   }>
 }
+export async function readSkillsLock(project: string): Promise<Set<string>> {
+  try {
+    const raw = await readFile(join(project, "skills-lock.json"), "utf-8")
+    const lock: SkillsLockFile = JSON.parse(raw)
+    return new Set(Object.keys(lock.skills ?? {}))
+  } catch {
+    return new Set()
+  }
+}
+
 
 function matches(when: WhenCondition, deps: Set<string>): boolean {
   return when.deps.includes("*") || when.deps.some((d) => deps.has(d))
