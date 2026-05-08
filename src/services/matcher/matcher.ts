@@ -1,42 +1,15 @@
 import { readFile } from "node:fs/promises"
 import { join } from "node:path"
-import type { McpServerEntry, SkillEntry } from "../../registry/types"
 import { mcpServers } from "../../registry/mcp-servers"
 import { skills } from "../../registry/skills"
-import type { McpServerJson, SkillJson } from "../shared"
 import { matches } from "./utils"
-
-export type ResolvedSkillEntry = Omit<SkillEntry, "conditionalSkills"> & {
-  resolvedSkills: string[]
-  installed: boolean
-}
-
-type SkillsLockFile = {
-  version: number
-  skills: Record<
-    string,
-    {
-      source: string
-      sourceType: string
-      computedHash: string
-    }
-  >
-}
-
-export type MatcherInput = {
-  deps: Set<string>
-  installedSkills?: Set<string>
-}
-
-export type MatcherResult = {
-  servers: McpServerEntry[]
-  skills: ResolvedSkillEntry[]
-}
-
-export type MatcherJson = {
-  mcpServers: McpServerJson[]
-  skills: SkillJson[]
-}
+import type {
+  MatcherInput,
+  MatcherJson,
+  MatcherResult,
+  ResolvedSkillEntry,
+  SkillsLockFile,
+} from "./types"
 
 export const matcherService = {
   async readSkillsLock(project: string): Promise<Set<string>> {
@@ -48,7 +21,7 @@ export const matcherService = {
       return new Set()
     }
   },
-  matchMcpServers(deps: Set<string>): McpServerEntry[] {
+  matchMcpServers(deps: Set<string>): MatcherResult["servers"] {
     return mcpServers.filter((entry) => matches(entry.when, deps))
   },
   matchSkills(deps: Set<string>, installedSkills?: Set<string>): ResolvedSkillEntry[] {
@@ -60,7 +33,9 @@ export const matcherService = {
           .flatMap((cs) => cs.skills)
 
         const resolvedSkills = [...entry.skills, ...extra]
-        const installed = installedSkills ? resolvedSkills.some((s) => installedSkills.has(s)) : false
+        const installed = installedSkills
+          ? resolvedSkills.some((s) => installedSkills.has(s))
+          : false
 
         return {
           source: entry.source,

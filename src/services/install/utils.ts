@@ -9,7 +9,7 @@ import {
   type PackageManager,
 } from "../../registry/package-managers"
 import type { AgentOption, McpServerEntry } from "../../registry/types"
-import type { ResolvedSkillEntry } from "../matcher/matcher"
+import type { ResolvedSkillEntry } from "../matcher/types"
 
 export type InstallFailure<T> = {
   item: T

@@ -1,31 +1,10 @@
 import { log, outro } from "@clack/prompts"
 import pc from "picocolors"
 import { detectDeps } from "./utils"
-import { matcherService, type MatcherResult } from "../matcher/matcher"
+import { matcherService } from "../matcher/matcher"
 import type { ServiceI } from "../service.interface"
-import type { McpServerJson, SkillJson } from "../shared"
 import { theme } from "../../components/theme"
-
-export type DetectInput = {
-  project: string
-}
-
-type DetectCommandInput = DetectInput & {
-  json?: boolean
-}
-
-export type DetectResult = {
-  project: string
-  deps: Set<string>
-  servers: MatcherResult["servers"]
-  matched: MatcherResult["skills"]
-}
-
-export type DetectJson = {
-  deps: string[]
-  mcpServers: McpServerJson[]
-  skills: SkillJson[]
-}
+import type { DetectCommandInput, DetectInput, DetectJson, DetectResult } from "./types"
 
 export const detectService = {
   async run({ project }: DetectInput): Promise<DetectResult> {

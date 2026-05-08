@@ -1,11 +1,8 @@
 import { afterEach, expect, test } from "bun:test"
 import { writeFileSync } from "node:fs"
 import type { McpServerEntry } from "../../src/registry/types"
-import type { ResolvedSkillEntry } from "../../src/services/matcher/matcher"
-import {
-  executeInstallations,
-  resolvePackageManager,
-} from "../../src/services/install/utils"
+import type { ResolvedSkillEntry } from "../../src/services/matcher/types"
+import { executeInstallations, resolvePackageManager } from "../../src/services/install/utils"
 import { createTempDir, removeTempDir } from "../helpers/temp-dir"
 
 const tempDirs: string[] = []

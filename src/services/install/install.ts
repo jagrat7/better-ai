@@ -1,37 +1,13 @@
 import { log, multiselect, outro, spinner } from "@clack/prompts"
 import pc from "picocolors"
-import {
-  detectService,
-  type DetectInput,
-  type DetectJson,
-  type DetectResult,
-} from "../detector/detect"
+import { detectService } from "../detector/detect"
 import { agentOptionsWithHints, executeInstallations, warnGlobalOnlyAgents } from "./utils"
 import { mcpAgents, skillAgents, defaultMcpAgents, defaultSkillAgents } from "../../registry/agents"
 import { promptWithCancel } from "../utils"
 import type { ServiceI } from "../service.interface"
 import { theme } from "../../components/theme"
-
-export type InstallInput = DetectInput & {
-  auto?: boolean
-  json?: boolean
-  agent?: string[]
-  skills?: boolean
-  mcp?: boolean
-}
-
-export type InstallResult = DetectResult & {
-  selectedServers: DetectResult["servers"]
-  selectedSkills: DetectResult["matched"]
-  selectedMcpAgents: string[]
-  selectedSkillAgents: string[]
-  scope?: "all" | "skills" | "mcp"
-}
-
-export type InstallJson = DetectJson & {
-  selectedMcpServers: DetectJson["mcpServers"]
-  selectedSkills: DetectJson["skills"]
-}
+import type { DetectResult } from "../detector/types"
+import type { InstallInput, InstallJson, InstallResult } from "./types"
 
 export class InstallService implements ServiceI<InstallInput, InstallResult, InstallJson> {
   async run({ auto, json, agent, skills, mcp, ...input }: InstallInput): Promise<InstallResult> {
