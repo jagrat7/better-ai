@@ -77,7 +77,11 @@ console.error(`${pc.bold(pc.cyan("Project:"))} ${pc.white(project)}`)
 console.error(`${pc.bold(pc.cyan("Iterations:"))} ${pc.white(`${iterations}`)}`)
 console.error(`${pc.bold(pc.cyan("Artifacts:"))} ${pc.green(outputDir)}`)
 
-await runProcess("bun", ["build", harnessPath, "--outfile", bundledHarnessPath, "--target", "node"], repoRoot)
+await runProcess(
+  "bun",
+  ["build", harnessPath, "--outfile", bundledHarnessPath, "--target", "node"],
+  repoRoot,
+)
 
 switch (mode) {
   case "run":
@@ -125,7 +129,11 @@ switch (mode) {
 console.error(`${pc.bold(pc.green("Done:"))} ${pc.white(outputDir)}`)
 
 function toSlug(value: string) {
-  const slug = value.trim().toLowerCase().replaceAll(/[^a-z0-9]+/g, "-").replaceAll(/^-+|-+$/g, "")
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, "-")
+    .replaceAll(/^-+|-+$/g, "")
   return slug || "profile"
 }
 
