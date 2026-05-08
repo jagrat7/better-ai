@@ -1,5 +1,5 @@
 import type { MatcherResult } from "../matcher/types"
-import type { McpServerJson, SkillJson } from "../shared"
+import type { McpServerJson, SkillJson } from "../shared/types"
 
 export type DetectInput = {
   project: string

@@ -1,5 +1,5 @@
 import type { McpServerEntry, SkillEntry } from "../../registry/types"
-import type { McpServerJson, SkillJson } from "../shared"
+import type { McpServerJson, SkillJson } from "../shared/types"
 
 export type ResolvedSkillEntry = Omit<SkillEntry, "conditionalSkills"> & {
   resolvedSkills: string[]
