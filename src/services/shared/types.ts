@@ -8,4 +8,5 @@ export type SkillJson = {
   source: string
   label: string
   skills: string[]
+  skillPaths: string[]
 }

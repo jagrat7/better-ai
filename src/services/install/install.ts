@@ -1,9 +1,9 @@
 import { log, multiselect, outro, spinner } from "@clack/prompts"
 import pc from "picocolors"
 import { detectService } from "../detector/detect"
+import { runDetectionWithProgress, promptWithCancel } from "../shared/utils"
 import { agentOptionsWithHints, executeInstallations, warnGlobalOnlyAgents } from "./utils"
 import { mcpAgents, skillAgents, defaultMcpAgents, defaultSkillAgents } from "../../registry/agents"
-import { promptWithCancel } from "../utils"
 import type { ServiceI } from "../service.interface"
 import { theme } from "../../components/theme"
 import type { DetectResult } from "../detector/types"
@@ -11,15 +11,19 @@ import type { InstallInput, InstallJson, InstallResult } from "./types"
 
 export class InstallService implements ServiceI<InstallInput, InstallResult, InstallJson> {
   async run({ auto, json, agent, skills, mcp, ...input }: InstallInput): Promise<InstallResult> {
-    const detected = await detectService.run(input)
+    const detected = await runDetectionWithProgress(input, { quiet: json })
     const availableServers = skills && !mcp ? [] : detected.servers
     const availableSkills = mcp && !skills ? [] : detected.matched
     const scope = skills && !mcp ? "skills" : mcp && !skills ? "mcp" : "all"
     const quiet = json === true
 
+    const totalSkillCount = availableSkills.reduce<number>(
+      (sum, s) => sum + s.resolvedSkills.length,
+      0,
+    )
     const parts = [
       availableServers.length > 0 && `${pc.bold(availableServers.length.toString())} MCP servers`,
-      availableSkills.length > 0 && `${pc.bold(availableSkills.length.toString())} skills`,
+      totalSkillCount > 0 && `${pc.bold(totalSkillCount.toString())} skills`,
     ].filter(Boolean)
 
     if (!quiet && parts.length > 0) {
@@ -176,6 +180,7 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
         source: skill.source,
         label: skill.label,
         skills: skill.resolvedSkills,
+        skillPaths: skill.resolvedSkillPaths,
       })),
     }
   }
@@ -293,11 +298,14 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
     }
 
     const skillOptions = result.matched.flatMap((skill) =>
-      skill.resolvedSkills.map((skillName) => ({
-        value: `${skill.source}::${skillName}`,
+      skill.resolvedSkills.map((skillName, index) => ({
+        value: `${skill.source}::${skill.resolvedSkillPaths[index] ?? skillName}`,
         label: skill.installed ? `${skillName} [installed]` : skillName,
         hint: ` ${skill.label}`,
         installed: skill.installed,
+        source: skill.source,
+        skillName,
+        skillPath: skill.resolvedSkillPaths[index] ?? skillName,
       })),
     )
 
@@ -334,16 +342,19 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
       return null
     }
 
-    const skillsBySource = new Map<string, string[]>()
+    const skillsBySource = new Map<string, { names: string[]; paths: string[] }>()
+    const skillOptionsByValue = new Map(skillOptions.map((option) => [option.value, option]))
+
     for (const key of selectedSkillKeys) {
-      const separatorIndex = key.indexOf("::")
-      if (separatorIndex === -1) continue
-      const source = key.slice(0, separatorIndex)
-      const skillName = key.slice(separatorIndex + 2)
+      const option = skillOptionsByValue.get(key)
+      if (!option) continue
+      const source = option.source
       if (!skillsBySource.has(source)) {
-        skillsBySource.set(source, [])
+        skillsBySource.set(source, { names: [], paths: [] })
       }
-      skillsBySource.get(source)!.push(skillName)
+      const selected = skillsBySource.get(source)!
+      selected.names.push(option.skillName)
+      selected.paths.push(option.skillPath)
     }
 
     return {
@@ -352,7 +363,8 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
         .filter((skill) => skillsBySource.has(skill.source))
         .map((skill) => ({
           ...skill,
-          resolvedSkills: skillsBySource.get(skill.source)!,
+          resolvedSkills: skillsBySource.get(skill.source)!.names,
+          resolvedSkillPaths: skillsBySource.get(skill.source)!.paths,
         })),
       selectedMcpAgents,
       selectedSkillAgents,

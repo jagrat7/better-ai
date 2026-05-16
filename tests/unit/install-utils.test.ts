@@ -38,6 +38,7 @@ test("executeInstallations includes manual npx guidance when installer commands 
       skills: ["ai-sdk"],
       when: { deps: ["ai"] },
       resolvedSkills: ["ai-sdk"],
+      resolvedSkillPaths: ["packages/ai/skills/ai-sdk"],
       installed: false,
     },
   ]
@@ -75,7 +76,7 @@ test("executeInstallations includes manual npx guidance when installer commands 
   expect(summary.preferredPackageManager).toBe("bun")
   expect(summary.usedFallback).toBe(true)
   expect(summary.skills.failed[0]?.error).toContain(
-    "Try manually with: npx skills@latest add vercel/ai --skill ai-sdk --agent cursor -y",
+    "Try manually with: npx skills@latest add vercel/ai --skill packages/ai/skills/ai-sdk --agent cursor -y",
   )
   expect(summary.mcp.failed[0]?.error).toContain(
     "Try manually with: npx add-mcp@latest @upstash/context7-mcp --name context7 -a cursor -y",

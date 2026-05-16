@@ -1,8 +1,10 @@
-import type { MatcherResult } from "../matcher/types"
+import type { MatcherProgress, MatcherResult } from "../matcher/types"
 import type { McpServerJson, SkillJson } from "../shared/types"
 
 export type DetectInput = {
   project: string
+  onDeps?: (deps: Set<string>) => void
+  onProgress?: (progress: MatcherProgress) => void
 }
 
 export type DetectCommandInput = DetectInput & {

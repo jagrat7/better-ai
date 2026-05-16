@@ -25,6 +25,7 @@ const detectedResult = {
       skills: ["ai-sdk"],
       when: { deps: ["ai"] },
       resolvedSkills: ["ai-sdk"],
+      resolvedSkillPaths: ["packages/ai/skills/ai-sdk"],
       installed: false,
     },
   ],
