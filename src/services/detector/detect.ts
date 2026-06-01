@@ -2,6 +2,11 @@ import { log, outro } from "@clack/prompts"
 import pc from "picocolors"
 import { detectDeps } from "./utils"
 import { matcherService } from "../matcher/matcher"
+import {
+  getSkillDetectionSource,
+  getSkillDetectionSourceHint,
+  getSkillDetectionSourceIcon,
+} from "../shared/skill-source"
 import { runDetectionWithProgress } from "../shared/utils"
 import type { ServiceI } from "../service.interface"
 import { theme } from "../../components/theme"
@@ -40,6 +45,7 @@ export const detectService = {
       skills: result.matched.map((skill) => ({
         source: skill.source,
         label: skill.label,
+        detectionSource: getSkillDetectionSource(skill),
         skills: skill.resolvedSkills,
         skillPaths: skill.resolvedSkillPaths,
       })),
@@ -57,23 +63,23 @@ export const detectService = {
       log.success(pc.bold("Skills"))
       for (const skill of result.matched) {
         const status = skill.installed ? pc.green(" [installed]") : ""
-        const hasGithubSkills = skill.resolvedSkillPaths.some(
-          (skillPath, index) => skillPath !== skill.resolvedSkills[index],
+        const detectionSource = getSkillDetectionSource(skill)
+        const sourceLabel = `${skill.resolvedSkills.length} ${getSkillDetectionSourceHint(skill)}`
+        log.message(
+          `  ${theme.bullet} ${skill.label} ${theme.hint(`— ${sourceLabel}`)}${status}`,
         )
-        const sourceLabel = hasGithubSkills
-          ? `${skill.resolvedSkillPaths.length} GitHub skills`
-          : `${skill.resolvedSkills.length} fallback skills`
-        log.message(`  ${theme.bullet} ${skill.label} ${theme.hint(`— ${sourceLabel}`)}${status}`)
-        if (hasGithubSkills) {
+        if (detectionSource === "github") {
           log.message(`    ${pc.bold("GitHub")}`)
           for (const [index, skillName] of skill.resolvedSkills.entries()) {
             const skillPath = skill.resolvedSkillPaths[index] ?? skillName
-            log.message(`      ${theme.bullet} ${skillName} ${theme.hint(`(${skillPath})`)}`)
+            log.message(
+              `      ${getSkillDetectionSourceIcon(skill)} ${skillName} ${theme.hint(`(${skillPath})`)}`,
+            )
           }
         } else {
           log.message(`    ${pc.bold("Fallback")}`)
           for (const skillName of skill.resolvedSkills) {
-            log.message(`      ${theme.bullet} ${skillName}`)
+            log.message(`      ${getSkillDetectionSourceIcon(skill)} ${skillName}`)
           }
         }
       }

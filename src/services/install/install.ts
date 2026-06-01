@@ -1,6 +1,12 @@
 import { log, multiselect, outro, spinner } from "@clack/prompts"
 import pc from "picocolors"
 import { detectService } from "../detector/detect"
+import {
+  getSkillDetectionSource,
+  getSkillDetectionSourceHint,
+  getSkillDetectionSourceIcon,
+  getSkillDetectionSourceKey,
+} from "../shared/skill-source"
 import { runDetectionWithProgress, promptWithCancel } from "../shared/utils"
 import { agentOptionsWithHints, executeInstallations, warnGlobalOnlyAgents } from "./utils"
 import { mcpAgents, skillAgents, defaultMcpAgents, defaultSkillAgents } from "../../registry/agents"
@@ -179,6 +185,7 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
       selectedSkills: result.selectedSkills.map((skill) => ({
         source: skill.source,
         label: skill.label,
+        detectionSource: getSkillDetectionSource(skill),
         skills: skill.resolvedSkills,
         skillPaths: skill.resolvedSkillPaths,
       })),
@@ -229,7 +236,7 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
       log.success(pc.bold("Installed Skills"))
       for (const skill of execution.skills.installed) {
         log.message(
-          `  ${theme.bullet} ${skill.label} ${theme.hint(`— ${skill.resolvedSkills.length} skills`)}`,
+          `  ${theme.bullet} ${skill.label} ${theme.hint(`— ${skill.resolvedSkills.length} skills, ${getSkillDetectionSourceHint(skill)}`)}`,
         )
       }
     }
@@ -300,8 +307,8 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
     const skillOptions = result.matched.flatMap((skill) =>
       skill.resolvedSkills.map((skillName, index) => ({
         value: `${skill.source}::${skill.resolvedSkillPaths[index] ?? skillName}`,
-        label: skill.installed ? `${skillName} [installed]` : skillName,
-        hint: ` ${skill.label}`,
+        label: `${getSkillDetectionSourceIcon(skill)} ${skill.installed ? `${skillName} [installed]` : skillName}`,
+        hint: skill.label,
         installed: skill.installed,
         source: skill.source,
         skillName,
@@ -311,14 +318,15 @@ export class InstallService implements ServiceI<InstallInput, InstallResult, Ins
 
     const selectedSkillKeys =
       skillOptions.length > 0
-        ? await promptWithCancel(() =>
-            multiselect({
+        ? await promptWithCancel(() => {
+            log.info(`Skill source key: ${getSkillDetectionSourceKey()}`)
+            return multiselect({
               message: "Select skills to install",
               options: skillOptions,
               initialValues: skillOptions.filter((opt) => !opt.installed).map((opt) => opt.value),
               required: false,
-            }),
-          )
+            })
+          })
         : []
 
     if (!selectedSkillKeys) {

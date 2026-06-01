@@ -1,3 +1,5 @@
+export type SkillDetectionSource = "github" | "fallback"
+
 export type McpServerJson = {
   key: string
   label: string
@@ -7,6 +9,7 @@ export type McpServerJson = {
 export type SkillJson = {
   source: string
   label: string
+  detectionSource: SkillDetectionSource
   skills: string[]
   skillPaths: string[]
 }

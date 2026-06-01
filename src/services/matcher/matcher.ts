@@ -155,10 +155,11 @@ export const matcherService = {
     // Build the final per-source result: prefer GitHub-discovered skills when
     // available, otherwise use the registry-declared list.
     return githubResults.map(({ entry, configuredSkills, fetchedSkills, installed }) => {
+      const detectionSource = fetchedSkills.length > 0 ? "github" : "fallback"
       const resolvedSkills =
-        fetchedSkills.length > 0 ? fetchedSkills.map((skill) => skill.name) : configuredSkills
+        detectionSource === "github" ? fetchedSkills.map((skill) => skill.name) : configuredSkills
       const resolvedSkillPaths =
-        fetchedSkills.length > 0 ? fetchedSkills.map((skill) => skill.path) : configuredSkills
+        detectionSource === "github" ? fetchedSkills.map((skill) => skill.path) : configuredSkills
 
       return {
         source: entry.source,
@@ -167,6 +168,7 @@ export const matcherService = {
         when: entry.when,
         resolvedSkills,
         resolvedSkillPaths,
+        detectionSource,
         installed,
       }
     })
@@ -189,6 +191,7 @@ export const matcherService = {
       skills: result.skills.map((skill) => ({
         source: skill.source,
         label: skill.label,
+        detectionSource: skill.detectionSource,
         skills: skill.resolvedSkills,
         skillPaths: skill.resolvedSkillPaths,
       })),
