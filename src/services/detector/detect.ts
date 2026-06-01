@@ -65,9 +65,7 @@ export const detectService = {
         const status = skill.installed ? pc.green(" [installed]") : ""
         const detectionSource = getSkillDetectionSource(skill)
         const sourceLabel = `${skill.resolvedSkills.length} ${getSkillDetectionSourceHint(skill)}`
-        log.message(
-          `  ${theme.bullet} ${skill.label} ${theme.hint(`— ${sourceLabel}`)}${status}`,
-        )
+        log.message(`  ${theme.bullet} ${skill.label} ${theme.hint(`— ${sourceLabel}`)}${status}`)
         if (detectionSource === "github") {
           log.message(`    ${pc.bold("GitHub")}`)
           for (const [index, skillName] of skill.resolvedSkills.entries()) {
