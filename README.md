@@ -35,7 +35,7 @@ As I was building this, I hope this project will provide a way to **democratize*
 npx bttrai
 
 # Install for a different project directory
-npx bttrai --project ./my-app
+npx bttrai ./my-app
 
 # Auto-approve install for specific agents
 npx bttrai --auto --agent cursor claude-code
@@ -48,6 +48,9 @@ npx bttrai --mcp
 
 # Detect what matches the current project
 npx bttrai detect
+
+# Detect what matches a different project directory
+npx bttrai detect ./my-app
 
 # Output JSON for scripts/automation
 npx bttrai detect --json
@@ -64,15 +67,15 @@ npx bttrai detect --json
 
 ### Options
 
-| Option             | Applies to          | Description                                   |
-| ------------------ | ------------------- | --------------------------------------------- |
-| `--help`           | all commands        | Show command usage and available options      |
-| `--project <path>` | `detect`, `install` | Target a different project directory          |
-| `--json`           | `detect`, `install` | Output machine-readable JSON                  |
-| `--auto`           | `install`           | Skip prompts and auto-select detected matches |
-| `--agent <name>`   | `install`           | Choose one or more agents to install into     |
-| `--skills`         | `install`           | Only include skills                           |
-| `--mcp`            | `install`           | Only include MCP servers                      |
+| Option           | Applies to          | Description                                   |
+| ---------------- | ------------------- | --------------------------------------------- |
+| `<path>`         | `detect`, `install` | Target a different project directory          |
+| `--help`         | all commands        | Show command usage and available options      |
+| `--json`         | `detect`, `install` | Output machine-readable JSON                  |
+| `--auto`         | `install`           | Skip prompts and auto-select detected matches |
+| `--agent <name>` | `install`           | Choose one or more agents to install into     |
+| `--skills`       | `install`           | Only include skills                           |
+| `--mcp`          | `install`           | Only include MCP servers                      |
 
 > [!IMPORTANT]
 > `--auto` requires at least one `--agent`. I also wouldn't recommend using it unless you're sure.

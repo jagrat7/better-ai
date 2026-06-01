@@ -26,7 +26,7 @@ const router = t.router({
     .meta({ description: "Detect project stack and matching MCP servers + skills" })
     .input(
       z.object({
-        project: z.string().optional().describe("Path to project directory"),
+        project: z.string().optional().describe("Path to project directory").meta({ positional: true }),
         json: z.boolean().optional().describe("Output as JSON"),
       }),
     )
@@ -40,7 +40,7 @@ const router = t.router({
     .meta({ description: "Install selected MCP servers and skills", default: true })
     .input(
       z.object({
-        project: z.string().optional().describe("Path to project directory"),
+        project: z.string().optional().describe("Path to project directory").meta({ positional: true }),
         json: z.boolean().optional().describe("Output as JSON"),
         auto: z.boolean().optional().describe("Auto-approve installation"),
         agent: z
