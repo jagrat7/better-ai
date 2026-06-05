@@ -1,0 +1,2 @@
+- dont spam multiple functions and types, intergrate into existing code
+- dont use ccc commands
