@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Config Plan</title>
+    <style>
+      :root {
+        --bg: #0f1115;
+        --surface: #171a21;
+        --surface-2: #1f242d;
+        --border: #2a313c;
+        --text: #e6e9ef;
+        --muted: #9aa4b2;
+        --accent: #7aa2f7;
+        --accent-soft: #243049;
+        --ok: #9ece6a;
+        --warn: #e0af68;
+        --code-bg: #11141a;
+        --radius: 12px;
+        --maxw: 860px;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font: 15px/1.65 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      main { max-width: var(--maxw); margin: 0 auto; padding: 48px 24px 96px; }
+      nav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 32px; font-size: 13px; }
+      nav a {
+        color: var(--muted); text-decoration: none;
+        border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px;
+      }
+      nav a.active { color: var(--text); border-color: var(--accent); background: var(--accent-soft); }
+      h1 { font-size: 30px; margin: 0 0 8px; letter-spacing: -0.02em; }
+      h2 { font-size: 19px; margin: 40px 0 14px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+      h3 { font-size: 15px; margin: 22px 0 8px; color: var(--accent); }
+      .lede { color: var(--muted); font-size: 16px; margin: 0 0 8px; }
+      code {
+        background: var(--code-bg); border: 1px solid var(--border);
+        border-radius: 6px; padding: 1px 6px; font-size: 13px;
+        font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      }
+      pre {
+        background: var(--code-bg); border: 1px solid var(--border);
+        border-radius: var(--radius); padding: 16px; overflow-x: auto;
+        font-size: 13px; line-height: 1.6;
+        font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      }
+      pre code { background: none; border: none; padding: 0; }
+      table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 14px; }
+      th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+      th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+      .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
+      .card.files code { display: inline-block; margin: 2px 0; }
+      ol.steps { counter-reset: step; list-style: none; padding: 0; }
+      ol.steps > li { position: relative; padding: 12px 0 12px 44px; border-bottom: 1px solid var(--border); }
+      ol.steps > li::before {
+        counter-increment: step; content: counter(step);
+        position: absolute; left: 0; top: 12px; width: 28px; height: 28px; border-radius: 8px;
+        background: var(--accent-soft); color: var(--accent);
+        display: grid; place-items: center; font-size: 13px; font-weight: 700;
+      }
+      .note {
+        background: var(--surface-2); border-left: 3px solid var(--accent);
+        border-radius: 0 8px 8px 0; padding: 10px 14px; margin: 14px 0; color: var(--muted);
+      }
+      footer { margin-top: 56px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--border); padding-top: 16px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <nav>
+        <a href="detect-command-plan.html">1 · Detect Command</a>
+        <a href="install-package-plan.html">2 · Install Package</a>
+        <a class="active" href="config-plan.html">3 · Config</a>
+        <a href="preset-plan.html">4 · Preset</a>
+      </nav>
+
+      <h1>Config Plan</h1>
+      <p class="lede">Agents resolve automatically by default — bttrai stores no agent list. Users who want a fixed set can pin one in the config.</p>
+
+      <div class="note">Part 3 of 4. The config file also holds <strong>presets</strong>, but preset behavior lives in <a href="preset-plan.html">plan 4</a>. This plan owns the file itself, agent resolution, and <code>bttrai config</code>.</div>
+
+      <h2>Goal</h2>
+      <p>Don't make users manage agents. By default (auto mode) bttrai resolves agent targets at runtime and <strong>persists nothing</strong> about agents. A user who wants a fixed set defines <code>agents</code> and sets <code>autoAgents: false</code>.</p>
+
+      <pre><code>bttrai detect                  # auto mode: resolve agents automatically
+bttrai detect --agent cursor   # override agents for this run
+bttrai config                  # open the file to pin agents / edit presets</code></pre>
+
+      <h2>Decisions</h2>
+      <ul>
+        <li><code>autoAgents</code> (default <code>true</code>) means agent targets are resolved automatically at runtime; <strong>nothing is stored</strong>.</li>
+        <li>To pin agents, set <code>autoAgents: false</code> and list canonical names in <code>agents</code>.</li>
+        <li><code>--agent</code> overrides agents for that run, regardless of mode.</li>
+        <li>bttrai <strong>never writes</strong> the <code>agents</code> field — it is user territory.</li>
+        <li>Agents use canonical bttrai names; runtime validation uses Zod.</li>
+      </ul>
+
+      <h2>Config Location</h2>
+      <p>Use the OS user config directory.</p>
+      <table>
+        <tr><th>OS</th><th>Path</th></tr>
+        <tr><td>Linux</td><td><code>~/.config/bttrai/config.json</code></td></tr>
+        <tr><td>macOS</td><td><code>~/Library/Application Support/bttrai/config.json</code></td></tr>
+        <tr><td>Windows</td><td><code>%APPDATA%\bttrai\config.json</code></td></tr>
+      </table>
+      <p>Support <code>BTTRAI_CONFIG</code> later as an explicit override.</p>
+
+      <h2>Config Shape</h2>
+      <p>Use JSON. By default agents resolve automatically and nothing is stored; set <code>autoAgents: false</code> and list <code>agents</code> to pin a fixed set. The <code>presets</code> block is documented in <a href="preset-plan.html">plan 4</a>; it lives in the same file.</p>
+      <pre><code>{
+  "version": 1,                                    // schema version, for migrations
+  "autoAgents": true,                              // resolve agents automatically
+  "agents": [],                                    // user-defined, used only when autoAgents:false
+
+  "presets": {
+    "frontend": { "...": "see preset plan" }
+  }
+}</code></pre>
+      <ul>
+        <li><code>autoAgents: true</code> — <code>agents</code> is ignored; targets are resolved at runtime.</li>
+        <li><code>autoAgents: false</code> — <code>agents</code> is the fixed list; bttrai reads it and never writes it.</li>
+      </ul>
+      <p>Add <code>$schema</code> later only if there is a hosted or packaged local schema.</p>
+
+      <h2>Config Validation</h2>
+      <p>Validate the config on every run <strong>before</strong> using it. Never silently fall back on a broken file — a breaking or invalid config stops the run and prompts the user to fix it.</p>
+      <ul>
+        <li><strong>When:</strong> on load, at the start of any command that reads config.</li>
+        <li><strong>Checks:</strong> JSON parses, shape matches the Zod schema, <code>agents</code> are known canonical names, preset <code>mcp</code>/<code>skills</code> resolve to real registry entries.</li>
+        <li><strong>Breaking version:</strong> if <code>version</code> is newer/older than supported, treat as breaking; offer a safe auto-migration when possible, otherwise prompt to fix.</li>
+        <li><strong>On failure (TTY):</strong> print the exact errors + file path, then prompt — <em>Open config to fix</em> / <em>Reset to defaults</em> / <em>Abort</em>.</li>
+        <li><strong>On failure (non-TTY or <code>--json</code>):</strong> emit structured errors and exit non-zero; never auto-mutate the file.</li>
+      </ul>
+
+      <h2>Agent Resolution</h2>
+      <pre><code>resolve:
+  --agent                              (always wins for the run)
+  else autoAgents ? auto-detect        (resolve targets at runtime)
+                  : config.agents      (user-defined, fixed)
+  else prompt                          (fallback)
+
+no write-back: bttrai never persists agents</code></pre>
+      <p>Auto mode detects agent targets at runtime (e.g. from agent config dirs present in the project plus built-in defaults). Resolved agents <strong>replace</strong> defaults — do not merge. bttrai never writes the <code>agents</code> field.</p>
+      <p>Update the <code>detect</code> flow handler (the service repurposed from <code>InstallService</code> in plan 1) so it resolves agents per the rule above. The current <code>--auto requires --agent</code> error goes away since auto mode always resolves something.</p>
+
+      <h3>Canonical agent translation</h3>
+      <p>Expose one canonical agent list to users, then translate internally to MCP and skill targets.</p>
+      <pre><code>type AgentTarget = {
+  id: string
+  label: string
+  mcp?: string
+  skills?: string
+  globalOnly?: boolean
+}</code></pre>
+      <table>
+        <tr><th>Canonical</th><th>MCP target</th><th>Skill target</th></tr>
+        <tr><td>cursor</td><td>cursor</td><td>cursor</td></tr>
+        <tr><td>claude-code</td><td>claude-code</td><td>claude-code</td></tr>
+        <tr><td>github-copilot</td><td>github-copilot-cli</td><td>github-copilot</td></tr>
+        <tr><td>vscode</td><td>vscode</td><td>—</td></tr>
+      </table>
+
+      <h2><code>bttrai config</code> Command</h2>
+      <p>Optional convenience — the file is normally created by the first install/detect run, but this lets users inspect or tweak it directly.</p>
+      <ul>
+        <li>Resolve the config path for the current OS.</li>
+        <li>If missing, write an empty config (<code>autoAgents: true</code>, empty <code>agents</code>, empty presets).</li>
+        <li>Open it in the user's <strong>default code editor</strong>: prefer <code>$VISUAL</code> / <code>$EDITOR</code>, else fall back to the OS default handler (<code>open</code> on macOS, <code>xdg-open</code> on Linux, <code>start</code> on Windows).</li>
+        <li>In non-TTY/JSON mode, skip launching and print the path instead.</li>
+      </ul>
+
+      <h2>Implementation Steps</h2>
+      <ol class="steps">
+        <li>Add the canonical agent translation map.</li>
+        <li>Add a Zod config schema, a JSON loader, and a writer.</li>
+        <li>Add a <code>validateConfig</code> step that runs on load: schema + semantic checks + version compatibility, returning typed errors.</li>
+        <li>On invalid config, prompt to fix (open / reset / abort) in TTY; exit non-zero with errors otherwise.</li>
+        <li>In the <code>detect</code> flow, resolve agents as <code>--agent → (autoAgents ? auto-detect : config.agents) → prompt</code>; never persist agents.</li>
+        <li>Add the <code>bttrai config</code> command to open (and lazily create) the file.</li>
+        <li>Update README.</li>
+        <li>Add unit tests for load/validate, agent resolution per mode, and agent translation.</li>
+      </ol>
+
+      <h2>Files Touched</h2>
+      <div class="card files">
+        <code>src/services/config/*</code> (new) &nbsp; <code>src/registry/agents.ts</code> &nbsp;
+        <code>src/cli.ts</code> &nbsp; <code>src/services/install/install.ts</code> &nbsp; <code>README.md</code>
+      </div>
+
+      <h2>Validation Errors</h2>
+      <ul>
+        <li>Malformed JSON.</li>
+        <li>Invalid config shape (schema mismatch).</li>
+        <li>Unknown agent name.</li>
+        <li>Preset references a missing MCP server or skill.</li>
+        <li>Unsupported / breaking <code>version</code>.</li>
+      </ul>
+
+      <h2>Tests</h2>
+      <ul>
+        <li>With <code>autoAgents: true</code>, agents resolve automatically and <code>agents</code> is ignored.</li>
+        <li>With <code>autoAgents: false</code>, the <code>agents</code> list is used as-is.</li>
+        <li>bttrai never writes the <code>agents</code> field (even with <code>--agent</code>).</li>
+        <li><code>--agent</code> overrides agents for the run in either mode.</li>
+        <li>Parses JSON config and rejects an invalid shape.</li>
+        <li>Invalid config prompts to fix in TTY and exits non-zero (with errors) in non-TTY/<code>--json</code>.</li>
+        <li>Unknown agent, bad preset reference, and unsupported <code>version</code> each fail validation.</li>
+        <li>Translates canonical agents into MCP and skill targets.</li>
+        <li>Opens or prints config path from <code>bttrai config</code>.</li>
+      </ul>
+
+      <footer>better-ai · plan 3 of 4 · pairs with preset-plan.html</footer>
+    </main>
+  </body>
+</html>
