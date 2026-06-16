@@ -1,6 +1,6 @@
 import { afterEach, expect, mock, spyOn, test } from "bun:test"
-import { detectService } from "../../src/services/detector/detect"
-import { InstallService } from "../../src/services/install/install"
+import { detectService } from "../../src/services/detect"
+import { InstallService } from "../../src/services/install"
 
 afterEach(() => {
   mock.restore()

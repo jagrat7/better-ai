@@ -7,7 +7,7 @@ const currentDir = dirname(fileURLToPath(import.meta.url))
 const nextAppFixture = join(currentDir, "..", "fixtures", "projects", "next-app")
 
 test("detect outputs stable JSON for a matching project", () => {
-  const result = runCli(["detect", "--project", nextAppFixture, "--json"])
+  const result = runCli(["detect", nextAppFixture, "--json"])
 
   expect(result.status).toBe(0)
 

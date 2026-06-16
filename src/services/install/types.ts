@@ -1,4 +1,4 @@
-import type { DetectInput, DetectJson, DetectResult } from "../detector/types"
+import type { DetectInput, DetectJson, DetectResult } from "../detect/types"
 
 export type InstallInput = DetectInput & {
   auto?: boolean
@@ -19,4 +19,16 @@ export type InstallResult = DetectResult & {
 export type InstallJson = DetectJson & {
   selectedMcpServers: DetectJson["mcpServers"]
   selectedSkills: DetectJson["skills"]
+}
+
+export type PackageInstallInput = {
+  project: string
+  // Packages plus any post-`--` package-manager flags, forwarded verbatim to the
+  // package manager. extractPackageNames() recovers just the package names.
+  rawArgs: string[]
+  mcp?: boolean
+  skills?: boolean
+  agent?: string[]
+  auto?: boolean
+  json?: boolean
 }

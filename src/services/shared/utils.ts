@@ -1,7 +1,7 @@
 import { cancel, isCancel, log, spinner } from "@clack/prompts"
 import pc from "picocolors"
-import { detectService } from "../detector/detect"
-import type { DetectInput, DetectResult } from "../detector/types"
+import { detectService } from "../detect"
+import type { DetectInput, DetectResult } from "../detect/types"
 
 // Shared UX wrapper: runs detection while showing spinners + logs. Used by both
 // the `detect` command and `install` so they share the same progress output.

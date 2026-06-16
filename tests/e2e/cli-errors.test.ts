@@ -16,8 +16,8 @@ afterEach(() => {
   tempDirs.length = 0
 })
 
-test("install auto without agent exits with an error", () => {
-  const result = runCli(["install", "--project", nextAppFixture, "--json", "--auto"])
+test("detect auto without agent exits with an error", () => {
+  const result = runCli(["detect", nextAppFixture, "--json", "--auto"])
   const output = `${result.stdout}\n${result.stderr}`
 
   expect(result.status).toBe(1)
@@ -28,7 +28,7 @@ test("detect errors when project manifest is missing", () => {
   const tempDir = createTempDir()
   tempDirs.push(tempDir)
 
-  const result = runCli(["detect", "--project", tempDir, "--json"])
+  const result = runCli(["detect", tempDir, "--json"])
   const output = `${result.stdout}\n${result.stderr}`
 
   expect(result.status).not.toBe(0)

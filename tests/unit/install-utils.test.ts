@@ -2,7 +2,11 @@ import { afterEach, expect, test } from "bun:test"
 import { writeFileSync } from "node:fs"
 import type { McpServerEntry } from "../../src/registry/types"
 import type { ResolvedSkillEntry } from "../../src/services/matcher/types"
-import { executeInstallations, resolvePackageManager } from "../../src/services/install/utils"
+import {
+  executeInstallations,
+  extractPackageNames,
+  resolvePackageManager,
+} from "../../src/services/install/utils"
 import { createTempDir, removeTempDir } from "../helpers/temp-dir"
 
 const tempDirs: string[] = []
@@ -11,6 +15,19 @@ afterEach(() => {
   for (const dir of tempDirs.splice(0)) {
     removeTempDir(dir)
   }
+})
+
+test("extractPackageNames keeps packages, strips versions, and ignores flags", () => {
+  expect(extractPackageNames(["-D", "ai@5", "@scope/pkg@1.2.3", "react"])).toEqual([
+    "ai",
+    "@scope/pkg",
+    "react",
+  ])
+})
+
+test("extractPackageNames skips the value of a space-form dir flag", () => {
+  expect(extractPackageNames(["-C", "../app", "react"])).toEqual(["react"])
+  expect(extractPackageNames(["--dir=../app", "react"])).toEqual(["react"])
 })
 
 test("resolvePackageManager falls back to npm when preferred runner is unavailable", async () => {
