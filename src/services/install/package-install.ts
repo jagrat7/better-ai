@@ -9,7 +9,6 @@ import {
   runInstallCommand,
 } from "./utils"
 import { InstallBase } from "./base"
-import { defaultMcpAgents, defaultSkillAgents } from "../../registry/agents"
 import type { InstallResult, PackageInstallInput } from "./types"
 
 type SelectionResult = Pick<
@@ -53,8 +52,10 @@ export class PackageInstallService extends InstallBase {
     }
 
     // Match extras, excluding universal (wildcard) entries so a package-targeted
-    // install stays focused on the named packages.
-    const matches = await matcherService.run({ deps })
+    // install stays focused on the named packages. Read skills-lock.json so
+    // already-installed skills get flagged and de-selected, same as the detect flow.
+    const installedSkills = await matcherService.readSkillsLock(project)
+    const matches = await matcherService.run({ deps, installedSkills })
     const matchedServers = matches.servers.filter((server) => !server.when.deps.includes("*"))
     const matchedSkills = matches.skills.filter((skill) => !skill.when.deps.includes("*"))
 
@@ -75,9 +76,11 @@ export class PackageInstallService extends InstallBase {
         })
       : null
 
-    // Pick extras + agents: --auto installs everything (requires --agent), JSON /
-    // non-TTY falls back to all matches with resolved-or-default agents, otherwise
-    // prompt interactively (reusing the shared prompts).
+    // Pick extras + agents: --auto installs everything (requires --agent). In
+    // non-interactive mode (JSON / non-TTY) we install extras only when the user
+    // explicitly chose target agents via --agent — otherwise we have no consent
+    // for which agents to write to, so we report the matches and skip them
+    // (the named package itself is already installed). Interactive mode prompts.
     let selection: SelectionResult | null
     if (auto) {
       if (!resolvedAgents) {
@@ -92,11 +95,19 @@ export class PackageInstallService extends InstallBase {
         selectedSkillAgents: resolvedAgents.skill,
       }
     } else if (json || !process.stdout.isTTY) {
+      if (!resolvedAgents) {
+        const names = [...availableServers, ...availableSkills].map((extra) => extra.label)
+        log.info(
+          `Matched extras (${names.join(", ")}). Re-run with --agent (and --auto) to install them non-interactively.`,
+        )
+        outro(pc.dim("Done"))
+        return
+      }
       selection = {
         selectedServers: availableServers,
         selectedSkills: availableSkills,
-        selectedMcpAgents: resolvedAgents?.mcp ?? defaultMcpAgents,
-        selectedSkillAgents: resolvedAgents?.skill ?? defaultSkillAgents,
+        selectedMcpAgents: resolvedAgents.mcp,
+        selectedSkillAgents: resolvedAgents.skill,
       }
     } else {
       selection = await this.promptForSelection(
