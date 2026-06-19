@@ -24,6 +24,24 @@ test("detect auto without agent exits with an error", () => {
   expect(output).toContain("--auto requires --agent to be specified")
 })
 
+test("detect errors clearly when the project directory does not exist", () => {
+  const missing = join(currentDir, "no-such-dir-xyz")
+  const result = runCli(["detect", missing, "--json"])
+  const output = `${result.stdout}\n${result.stderr}`
+
+  expect(result.status).not.toBe(0)
+  expect(output).toContain("Project directory not found")
+})
+
+test("install errors clearly when the project directory does not exist", () => {
+  const missing = join(currentDir, "no-such-dir-xyz")
+  const result = runCli(["install", "ai", "--project", missing, "--json"])
+  const output = `${result.stdout}\n${result.stderr}`
+
+  expect(result.status).not.toBe(0)
+  expect(output).toContain("Project directory not found")
+})
+
 test("detect errors when project manifest is missing", () => {
   const tempDir = createTempDir()
   tempDirs.push(tempDir)

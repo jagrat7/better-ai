@@ -3,9 +3,11 @@ import pkg from "../package.json"
 import { initTRPC } from "@trpc/server"
 import { createCli, type TrpcCliMeta } from "trpc-cli"
 import { z } from "zod"
+import pc from "picocolors"
 import { resolve } from "path"
 import { detect } from "./services/detect"
-import { install, installService } from "./services/install"
+import { install } from "./services/install"
+import { assertProjectExists } from "./services/shared/utils"
 import { renderHeader } from "./components/header"
 
 const t = initTRPC.meta<TrpcCliMeta>().create()
@@ -17,6 +19,12 @@ const procedure = t.procedure.use(async ({ getRawInput, next }) => {
   }
   if (process.stdout.isTTY && !opts?.json) {
     console.error(renderHeader())
+  }
+  try {
+    await assertProjectExists(resolve((opts?.project as string | undefined) ?? "."))
+  } catch (error) {
+    console.error(pc.red(error instanceof Error ? error.message : String(error)))
+    process.exit(1)
   }
   return next()
 })
@@ -58,6 +66,7 @@ const router = t.router({
         return
       }
       await install({
+        type: "detect",
         project,
         json: input.json,
         auto: input.auto,
@@ -82,7 +91,8 @@ const router = t.router({
       }),
     )
     .mutation(async ({ input }) => {
-      await installService.installForPackages({
+      await install({
+        type: "package",
         project: resolve(input.project ?? "."),
         rawArgs: input.packages ?? [],
         mcp: input.mcp,

@@ -1,6 +1,6 @@
 import { afterEach, expect, mock, spyOn, test } from "bun:test"
 import { detectService } from "../../src/services/detect"
-import { InstallService } from "../../src/services/install"
+import { DetectInstallService } from "../../src/services/install/detect-install"
 
 afterEach(() => {
   mock.restore()
@@ -32,7 +32,7 @@ const detectedResult = {
 }
 
 test("run errors when auto mode has no agent", async () => {
-  const service = new InstallService()
+  const service = new DetectInstallService()
   spyOn(detectService, "run").mockResolvedValue(detectedResult)
   spyOn(process, "exit").mockImplementation(((code?: number) => {
     throw new Error(`exit:${code ?? 0}`)
@@ -44,7 +44,7 @@ test("run errors when auto mode has no agent", async () => {
 })
 
 test("run passes only skills to prompt in skills-only scope", async () => {
-  const service = new InstallService()
+  const service = new DetectInstallService()
   spyOn(detectService, "run").mockResolvedValue(detectedResult)
   const promptSpy = spyOn(service as never, "promptForSelection").mockResolvedValue({
     selectedServers: [],
@@ -68,7 +68,7 @@ test("run passes only skills to prompt in skills-only scope", async () => {
 })
 
 test("run passes only MCP servers to prompt in mcp-only scope", async () => {
-  const service = new InstallService()
+  const service = new DetectInstallService()
   spyOn(detectService, "run").mockResolvedValue(detectedResult)
   const promptSpy = spyOn(service as never, "promptForSelection").mockResolvedValue({
     selectedServers: detectedResult.servers,
@@ -92,7 +92,7 @@ test("run passes only MCP servers to prompt in mcp-only scope", async () => {
 })
 
 test("run returns empty selections when prompt is cancelled", async () => {
-  const service = new InstallService()
+  const service = new DetectInstallService()
   spyOn(detectService, "run").mockResolvedValue(detectedResult)
   spyOn(service as never, "promptForSelection").mockResolvedValue(null)
 
@@ -106,7 +106,7 @@ test("run returns empty selections when prompt is cancelled", async () => {
 })
 
 test("run in auto mode uses resolved agents and skips prompt flow", async () => {
-  const service = new InstallService()
+  const service = new DetectInstallService()
   spyOn(detectService, "run").mockResolvedValue(detectedResult)
   spyOn(service as never, "resolveAgents").mockResolvedValue({
     mcp: ["cursor"],

@@ -32,3 +32,9 @@ export type PackageInstallInput = {
   auto?: boolean
   json?: boolean
 }
+
+// Discriminated input for the install dispatcher: `detect` runs the project-wide
+// stack detection install; `package` runs a real package install plus its extras.
+export type InstallDispatchInput =
+  | ({ type: "detect" } & InstallInput)
+  | ({ type: "package" } & PackageInstallInput)

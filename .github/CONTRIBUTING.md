@@ -79,6 +79,6 @@ This project uses a small set of tools that make CLI development simpler and eas
 bun run dev
 bun run build
 bun run lint
-bun run fmt:check
+bun run fmt
 bun run test
 ```
