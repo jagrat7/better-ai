@@ -46,7 +46,7 @@ src/
 ├── components/          # Shared CLI UI helpers and output formatting
 ├── registry/            # Built-in registry data for agents, MCP servers, orgs, and skills
 ├── services/
-│   ├── detector/        # Project stack detection logic
+│   ├── detect/          # Project stack detection logic
 │   ├── install/         # Installation flow and install utilities
 │   ├── matcher/         # Matching logic between detected deps and registry entries
 │   ├── service.interface.ts
@@ -79,6 +79,6 @@ This project uses a small set of tools that make CLI development simpler and eas
 bun run dev
 bun run build
 bun run lint
-bun run fmt:check
+bun run fmt
 bun run test
 ```

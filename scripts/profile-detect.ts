@@ -1,6 +1,6 @@
 import { resolve } from "node:path"
 import { performance } from "node:perf_hooks"
-import { detectService } from "../src/services/detector/detect"
+import { detectService } from "../src/services/detect"
 
 const [, , projectArg = ".", iterationsArg = "75"] = process.argv
 const project = resolve(projectArg)

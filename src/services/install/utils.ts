@@ -3,13 +3,17 @@ import { join } from "node:path"
 import { log } from "@clack/prompts"
 import { execa } from "execa"
 import pc from "picocolors"
+import { theme } from "../../components/theme"
 import {
   getPackageManagerConfig,
   packageManagers,
   type PackageManager,
 } from "../../registry/package-managers"
 import type { AgentOption, McpServerEntry } from "../../registry/types"
+import { getSkillDetectionSourceHint } from "../shared/skill-source"
 import type { ResolvedSkillEntry } from "../matcher/types"
+import { z } from "zod"
+import { installOptions, type InstallFlags } from "./types"
 
 export type InstallFailure<T> = {
   item: T
@@ -126,6 +130,21 @@ async function runPackageCommand(project: string, packageManager: PackageManager
   })
 }
 
+// Runs a real package install (e.g. `npm install ai`) using the manager's
+// install binary (`command`, not the runner) with rawArgs forwarded verbatim.
+// Inherits stdio so the user sees the package manager's own progress output.
+export async function runInstallCommand(
+  project: string,
+  packageManager: PackageManager,
+  rawArgs: string[],
+) {
+  const metadata = getPackageManagerConfig(packageManager)
+  await execa(metadata.command, metadata.installArgs(rawArgs), {
+    cwd: project,
+    stdio: "inherit",
+  })
+}
+
 function formatManualInstallCommand(args: string[]) {
   return `npx ${args.join(" ")}`
 }
@@ -218,6 +237,35 @@ export async function executeInstallations(
   return summary
 }
 
+// Shared reporter for an install execution summary: lists installed MCP
+// servers + skills and surfaces per-item failures. Used by both the detect
+// flow and the package install.
+export function reportInstallExecution(execution: InstallExecutionSummary) {
+  if (execution.mcp.installed.length > 0) {
+    log.success(pc.bold("Installed MCP Servers"))
+    for (const server of execution.mcp.installed) {
+      log.message(`  ${theme.bullet} ${server.label} ${theme.hint(`(${server.name})`)}`)
+    }
+  }
+
+  if (execution.skills.installed.length > 0) {
+    log.success(pc.bold("Installed Skills"))
+    for (const skill of execution.skills.installed) {
+      log.message(
+        `  ${theme.bullet} ${skill.label} ${theme.hint(`— ${skill.resolvedSkills.length} skills, ${getSkillDetectionSourceHint(skill)}`)}`,
+      )
+    }
+  }
+
+  for (const failure of execution.mcp.failed) {
+    log.warn(`Failed to install MCP server ${pc.bold(failure.item.name)}: ${failure.error}`)
+  }
+
+  for (const failure of execution.skills.failed) {
+    log.warn(`Failed to install skills from ${pc.bold(failure.item.source)}: ${failure.error}`)
+  }
+}
+
 export function agentOptionsWithHints(agents: AgentOption[]) {
   return agents.map((a) => ({
     value: a.value,
@@ -232,4 +280,98 @@ export function warnGlobalOnlyAgents(selected: string[], agents: AgentOption[]) 
     const names = picked.map((v) => pc.bold(globalOnlyMap.get(v)!)).join(", ")
     log.warn(`${names} — global install only (no project-level config)`)
   }
+}
+
+// Package-manager flags that take a directory value. We skip their value when
+// recovering package names so a path (e.g. the `../app` in `-- -C ../app`) isn't
+// mistaken for a package.
+const projectDirFlags = new Set(["-C", "--dir", "--prefix", "--cwd"])
+
+// The shared install flags (all optional) plus the leftover tokens to forward.
+export type HoistedInstallFlags = InstallFlags & {
+  // Package names + genuine package-manager flags, forwarded verbatim.
+  rest: string[]
+}
+
+// How a flag consumes its arguments: a boolean is a bare switch, a value takes
+// one token, an array greedily consumes following non-flag tokens.
+type FlagArity = "boolean" | "value" | "array"
+
+function flagArity(schema: z.ZodType): FlagArity {
+  // Peel the `.optional()` wrapper to inspect the underlying type.
+  const wrapped = schema as { unwrap?: () => z.ZodType }
+  const inner = typeof wrapped.unwrap === "function" ? wrapped.unwrap() : schema
+  if (inner instanceof z.ZodBoolean) return "boolean"
+  if (inner instanceof z.ZodArray) return "array"
+  return "value"
+}
+
+// `--flag` -> arity, derived from the shared schema so the recognised flags and
+// their value handling never drift from `installOptions`.
+const installFlagArities = new Map<string, FlagArity>(
+  Object.entries(installOptions.shape).map(([key, schema]) => [
+    `--${key}`,
+    flagArity(schema as z.ZodType),
+  ]),
+)
+
+// Splits a raw arg list into bttrai's own flags vs. everything else. This lets
+// `--project`, `--skills`, etc. work even when they land after `--` (where they
+// would otherwise be forwarded blindly to the package manager). Everything not
+// recognised — package names and real package-manager flags — goes to `rest`.
+//   - value flags take the next token (`--project ./app`)
+//   - array flags consume following non-flag tokens (`--agent cursor claude-code`)
+export function hoistInstallFlags(rawArgs: string[]): HoistedInstallFlags {
+  const out: HoistedInstallFlags = { rest: [] }
+  const flags = out as Record<string, unknown>
+
+  for (let i = 0; i < rawArgs.length; i++) {
+    const token = rawArgs[i]
+    if (!token) continue
+
+    const arity = installFlagArities.get(token)
+
+    if (!arity) {
+      out.rest.push(token)
+      continue
+    }
+
+    const key = token.slice(2)
+    if (arity === "boolean") {
+      flags[key] = true
+    } else if (arity === "value") {
+      flags[key] = rawArgs[++i]
+    } else {
+      const values: string[] = []
+      while (i + 1 < rawArgs.length && !rawArgs[i + 1]!.startsWith("-")) {
+        values.push(rawArgs[++i]!)
+      }
+      flags[key] = [...((flags[key] as string[] | undefined) ?? []), ...values]
+    }
+  }
+
+  return out
+}
+
+// Pulls installable package names out of a raw package-manager arg string so
+// their registry extras can be resolved. Contract:
+//   - a token is a package only when it is NOT a flag (does not start with "-")
+//   - the value of a space-form dir flag (`-C ../app`) is skipped, not a package
+//   - strip a trailing @version / @tag before matching (ai@5 -> ai)
+//   - keep scoped names intact (@scope/pkg stays @scope/pkg; @scope/pkg@5 -> @scope/pkg)
+export function extractPackageNames(rawArgs: string[]): string[] {
+  const names: string[] = []
+  for (let i = 0; i < rawArgs.length; i++) {
+    const token = rawArgs[i]
+    if (!token) continue
+    if (token.startsWith("-")) {
+      // Skip the value following a space-form dir flag; `--dir=../app` is already
+      // excluded by the leading "-" check.
+      if (projectDirFlags.has(token)) i++
+      continue
+    }
+    const at = token.lastIndexOf("@")
+    names.push(at > 0 ? token.slice(0, at) : token)
+  }
+  return names
 }

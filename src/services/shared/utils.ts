@@ -1,7 +1,25 @@
+import { stat } from "node:fs/promises"
 import { cancel, isCancel, log, spinner } from "@clack/prompts"
 import pc from "picocolors"
-import { detectService } from "../detector/detect"
-import type { DetectInput, DetectResult } from "../detector/types"
+import { detectService } from "../detect"
+import type { DetectInput, DetectResult } from "../detect/types"
+
+// Fail fast with a clear message when the target project directory is missing
+// or isn't a directory, instead of letting the package manager / installer
+// surface a raw ENOENT from an invalid execa `cwd`.
+export async function assertProjectExists(project: string): Promise<void> {
+  try {
+    const stats = await stat(project)
+    if (!stats.isDirectory()) {
+      throw new Error(`Project path is not a directory: ${project}`)
+    }
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      throw new Error(`Project directory not found: ${project}`)
+    }
+    throw error
+  }
+}
 
 // Shared UX wrapper: runs detection while showing spinners + logs. Used by both
 // the `detect` command and `install` so they share the same progress output.

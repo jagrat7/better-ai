@@ -1,0 +1,208 @@
+import { log, multiselect } from "@clack/prompts"
+import pc from "picocolors"
+import {
+  getSkillDetectionSourceIcon,
+  getSkillDetectionSourceKey,
+} from "../shared/skill-source"
+import { promptWithCancel } from "../shared/utils"
+import { agentOptionsWithHints, warnGlobalOnlyAgents } from "./utils"
+import { mcpAgents, skillAgents, defaultMcpAgents, defaultSkillAgents } from "../../registry/agents"
+import type { DetectResult } from "../detect/types"
+import type { InstallResult } from "./types"
+
+type SelectionResult = Pick<
+  InstallResult,
+  "selectedServers" | "selectedSkills" | "selectedMcpAgents" | "selectedSkillAgents"
+>
+
+// Shared agent-resolution + interactive selection used by both the project
+// (detect-driven) install and the package install. Both flows pick from the same
+// matched servers/skills, so the prompts and `--agent` resolution live here.
+export abstract class InstallBase {
+  protected async resolveAgents(
+    agents: string[],
+    { hasServers, hasSkills }: { hasServers: boolean; hasSkills: boolean },
+  ): Promise<{ mcp: string[]; skill: string[] }> {
+    const mcpValues = new Set(mcpAgents.map((a) => a.value))
+    const skillValues = new Set(skillAgents.map((a) => a.value))
+
+    const mcp: string[] = []
+    const skill: string[] = []
+
+    for (const agent of agents) {
+      const inMcp = mcpValues.has(agent)
+      const inSkill = skillValues.has(agent)
+
+      if (inMcp) mcp.push(agent)
+      if (inSkill) skill.push(agent)
+
+      if (!inMcp && !inSkill) {
+        log.warn(`Agent ${pc.bold(agent)} is not supported by MCP or skills CLI`)
+      } else if (!inMcp) {
+        log.warn(`Agent ${pc.bold(agent)} is not supported by MCP CLI (skills only)`)
+      } else if (!inSkill) {
+        log.warn(`Agent ${pc.bold(agent)} is not supported by skills CLI (MCP only)`)
+      }
+
+      if (inMcp) {
+        const entry = mcpAgents.find((a) => a.value === agent)
+        if (entry?.globalOnly) {
+          log.info(
+            `${pc.bold(entry.label)} — MCP servers will be installed globally (no project-level config)`,
+          )
+        }
+      }
+    }
+
+    if (mcp.length === 0 && hasServers) {
+      log.info("None of the specified agents support MCP — select MCP agents:")
+      const picked = await promptWithCancel(() =>
+        multiselect({
+          message: "Select agents to install MCP servers to",
+          options: agentOptionsWithHints(mcpAgents),
+          initialValues: defaultMcpAgents,
+          required: false,
+        }),
+      )
+      if (picked) {
+        warnGlobalOnlyAgents(picked, mcpAgents)
+        mcp.push(...picked)
+      }
+    }
+
+    if (skill.length === 0 && hasSkills) {
+      log.info("None of the specified agents support skills — select skill agents:")
+      const picked = await promptWithCancel(() =>
+        multiselect({
+          message: "Select agents to install skills to",
+          options: agentOptionsWithHints(skillAgents),
+          initialValues: defaultSkillAgents,
+          required: false,
+        }),
+      )
+      if (picked) skill.push(...picked)
+    }
+
+    return { mcp, skill }
+  }
+
+  async promptForSelection(
+    result: DetectResult,
+    preResolvedAgents: { mcp: string[]; skill: string[] } | null,
+  ): Promise<SelectionResult | null> {
+    const selectedServerKeys =
+      result.servers.length > 0
+        ? await promptWithCancel(() =>
+            multiselect({
+              message: "Select MCP servers to install",
+              options: result.servers.map((server) => ({
+                value: server.key,
+                label: server.label,
+                hint: server.name,
+              })),
+              initialValues: result.servers.map((server) => server.key),
+              required: false,
+            }),
+          )
+        : []
+
+    if (!selectedServerKeys) {
+      return null
+    }
+
+    const selectedMcpAgents =
+      preResolvedAgents?.mcp ??
+      (selectedServerKeys.length > 0
+        ? await promptWithCancel(() =>
+            multiselect({
+              message: "Select agents to install MCP servers to",
+              options: agentOptionsWithHints(mcpAgents),
+              initialValues: defaultMcpAgents,
+              required: false,
+            }),
+          )
+        : [])
+
+    if (!selectedMcpAgents) {
+      return null
+    }
+
+    if (selectedMcpAgents.length > 0) {
+      warnGlobalOnlyAgents(selectedMcpAgents, mcpAgents)
+    }
+
+    const skillOptions = result.matched.flatMap((skill) =>
+      skill.resolvedSkills.map((skillName, index) => ({
+        value: `${skill.source}::${skill.resolvedSkillPaths[index] ?? skillName}`,
+        label: `${getSkillDetectionSourceIcon(skill)} ${skill.installed ? `${skillName} [installed]` : skillName}`,
+        hint: skill.label,
+        installed: skill.installed,
+        source: skill.source,
+        skillName,
+        skillPath: skill.resolvedSkillPaths[index] ?? skillName,
+      })),
+    )
+
+    const selectedSkillKeys =
+      skillOptions.length > 0
+        ? await promptWithCancel(() => {
+            log.info(`Skill source key: ${getSkillDetectionSourceKey()}`)
+            return multiselect({
+              message: "Select skills to install",
+              options: skillOptions,
+              initialValues: skillOptions.filter((opt) => !opt.installed).map((opt) => opt.value),
+              required: false,
+            })
+          })
+        : []
+
+    if (!selectedSkillKeys) {
+      return null
+    }
+
+    const selectedSkillAgents =
+      preResolvedAgents?.skill ??
+      (selectedSkillKeys.length > 0
+        ? await promptWithCancel(() =>
+            multiselect({
+              message: "Select agents to install skills to",
+              options: skillAgents,
+              initialValues: defaultSkillAgents,
+              required: false,
+            }),
+          )
+        : [])
+
+    if (!selectedSkillAgents) {
+      return null
+    }
+
+    const skillsBySource = new Map<string, { names: string[]; paths: string[] }>()
+    const skillOptionsByValue = new Map(skillOptions.map((option) => [option.value, option]))
+
+    for (const key of selectedSkillKeys) {
+      const option = skillOptionsByValue.get(key)
+      if (!option) continue
+      const source = option.source
+      if (!skillsBySource.has(source)) {
+        skillsBySource.set(source, { names: [], paths: [] })
+      }
+      const selected = skillsBySource.get(source)!
+      selected.names.push(option.skillName)
+      selected.paths.push(option.skillPath)
+    }
+
+    return {
+      selectedServers: result.servers.filter((server) => selectedServerKeys.includes(server.key)),
+      selectedSkills: result.matched
+        .filter((skill) => skillsBySource.has(skill.source))
+        .map((skill) => ({
+          ...skill,
+          resolvedSkills: skillsBySource.get(skill.source)!.names,
+          resolvedSkillPaths: skillsBySource.get(skill.source)!.paths,
+        })),
+      selectedMcpAgents,
+      selectedSkillAgents,
+    }
+  }
+}

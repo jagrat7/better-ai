@@ -1,5 +1,5 @@
 import { afterEach, expect, mock, spyOn, test } from "bun:test"
-import { matcherService } from "../../src/services/matcher/matcher"
+import { matcherService } from "../../src/services/matcher"
 
 afterEach(() => {
   mock.restore()

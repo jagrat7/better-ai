@@ -16,19 +16,37 @@ afterEach(() => {
   tempDirs.length = 0
 })
 
-test("install auto without agent exits with an error", () => {
-  const result = runCli(["install", "--project", nextAppFixture, "--json", "--auto"])
+test("detect auto without agent exits with an error", () => {
+  const result = runCli(["detect", nextAppFixture, "--json", "--auto"])
   const output = `${result.stdout}\n${result.stderr}`
 
   expect(result.status).toBe(1)
   expect(output).toContain("--auto requires --agent to be specified")
 })
 
+test("detect errors clearly when the project directory does not exist", () => {
+  const missing = join(currentDir, "no-such-dir-xyz")
+  const result = runCli(["detect", missing, "--json"])
+  const output = `${result.stdout}\n${result.stderr}`
+
+  expect(result.status).not.toBe(0)
+  expect(output).toContain("Project directory not found")
+})
+
+test("install errors clearly when the project directory does not exist", () => {
+  const missing = join(currentDir, "no-such-dir-xyz")
+  const result = runCli(["install", "ai", "--project", missing, "--json"])
+  const output = `${result.stdout}\n${result.stderr}`
+
+  expect(result.status).not.toBe(0)
+  expect(output).toContain("Project directory not found")
+})
+
 test("detect errors when project manifest is missing", () => {
   const tempDir = createTempDir()
   tempDirs.push(tempDir)
 
-  const result = runCli(["detect", "--project", tempDir, "--json"])
+  const result = runCli(["detect", tempDir, "--json"])
   const output = `${result.stdout}\n${result.stderr}`
 
   expect(result.status).not.toBe(0)

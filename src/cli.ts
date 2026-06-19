@@ -3,9 +3,13 @@ import pkg from "../package.json"
 import { initTRPC } from "@trpc/server"
 import { createCli, type TrpcCliMeta } from "trpc-cli"
 import { z } from "zod"
+import pc from "picocolors"
 import { resolve } from "path"
-import { detect } from "./services/detector/detect"
-import { install } from "./services/install/install"
+import { detect } from "./services/detect"
+import { install } from "./services/install"
+import { installOptions } from "./services/install/types"
+import { hoistInstallFlags } from "./services/install/utils"
+import { assertProjectExists } from "./services/shared/utils"
 import { renderHeader } from "./components/header"
 
 const t = initTRPC.meta<TrpcCliMeta>().create()
@@ -18,55 +22,79 @@ const procedure = t.procedure.use(async ({ getRawInput, next }) => {
   if (process.stdout.isTTY && !opts?.json) {
     console.error(renderHeader())
   }
+  try {
+    await assertProjectExists(resolve((opts?.project as string | undefined) ?? "."))
+  } catch (error) {
+    console.error(pc.red(error instanceof Error ? error.message : String(error)))
+    process.exit(1)
+  }
   return next()
 })
 
+
 const router = t.router({
   detect: procedure
-    .meta({ description: "Detect project stack and matching MCP servers + skills" })
+    .meta({
+      description: "Detect project stack and install matching MCP servers + skills",
+      default: true,
+    })
     .input(
-      z.object({
-        project: z
-          .string()
-          .optional()
-          .describe("Path to project directory")
-          .meta({ positional: true }),
-        json: z.boolean().optional().describe("Output as JSON"),
+      installOptions.extend({
+        // detect takes the project as a positional; install keeps it as a flag
+        // (its positional is `packages`).
+        project: installOptions.shape.project.meta({ positional: true }),
+        list: z.boolean().optional().describe("Print matches only, install nothing"),
       }),
     )
     .mutation(async ({ input }) => {
-      await detect({
-        project: resolve(input.project ?? "."),
-        json: input.json,
-      })
-    }),
-  install: procedure
-    .meta({ description: "Install selected MCP servers and skills", default: true })
-    .input(
-      z.object({
-        project: z
-          .string()
-          .optional()
-          .describe("Path to project directory")
-          .meta({ positional: true }),
-        json: z.boolean().optional().describe("Output as JSON"),
-        auto: z.boolean().optional().describe("Auto-approve installation"),
-        agent: z
-          .array(z.string())
-          .optional()
-          .describe("Agents to install to (e.g. cursor, claude-code)"),
-        skills: z.boolean().optional().describe("Include only skills in installation"),
-        mcp: z.boolean().optional().describe("Include only MCP servers in installation"),
-      }),
-    )
-    .mutation(async ({ input }) => {
+      const project = resolve(input.project ?? ".")
+      // Read-only modes: --list always prints, --json without --auto prints matches
+      // without executing. Both skip the interactive install flow entirely.
+      if (input.list || (input.json && !input.auto)) {
+        await detect({ project, json: input.json })
+        return
+      }
       await install({
-        project: resolve(input.project ?? "."),
+        type: "detect",
+        project,
         json: input.json,
         auto: input.auto,
         agent: input.agent,
         skills: input.skills,
         mcp: input.mcp,
+      })
+    }),
+  install: procedure
+    .meta({
+      description:
+        "Install package(s) and matching MCP servers + skills. Pass native package-manager flags (e.g. -D) after `--`.",
+    })
+    .input(
+      installOptions.extend({
+        packages: z
+          .array(z.string())
+          .optional()
+          .describe("Packages to install; tokens after `--` are forwarded to the package manager")
+          .meta({ positional: true }),
+        auto: z.boolean().optional().describe("Auto-approve installation (requires --agent)"),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      // Hoist any bttrai flags the user placed after `--` (a common mistake) so
+      // they take effect regardless of position; forward only the rest to the
+      // package manager. Flags parsed before `--` still win when both are set.
+      const hoisted = hoistInstallFlags(input.packages ?? [])
+      const project = resolve(input.project ?? hoisted.project ?? ".")
+      await assertProjectExists(project)
+      await install({
+        type: "package",
+        project,
+        rawArgs: hoisted.rest,
+        mcp: input.mcp ?? hoisted.mcp,
+        skills: input.skills ?? hoisted.skills,
+        agent: input.agent ?? hoisted.agent,
+        auto: input.auto ?? hoisted.auto,
+        json: input.json ?? hoisted.json,
       })
     }),
 })

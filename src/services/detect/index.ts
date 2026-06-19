@@ -1,7 +1,7 @@
 import { log, outro } from "@clack/prompts"
 import pc from "picocolors"
 import { detectDeps } from "./utils"
-import { matcherService } from "../matcher/matcher"
+import { matcherService } from "../matcher"
 import {
   getSkillDetectionSource,
   getSkillDetectionSourceHint,

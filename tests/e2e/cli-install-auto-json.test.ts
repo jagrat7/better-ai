@@ -6,16 +6,8 @@ import { runCli } from "../helpers/cli"
 const currentDir = dirname(fileURLToPath(import.meta.url))
 const nextAppFixture = join(currentDir, "..", "fixtures", "projects", "next-app")
 
-test("install auto json returns selected items without running installers", () => {
-  const result = runCli([
-    "install",
-    "--project",
-    nextAppFixture,
-    "--json",
-    "--auto",
-    "--agent",
-    "cursor",
-  ])
+test("detect auto json returns selected items without running installers", () => {
+  const result = runCli(["detect", nextAppFixture, "--json", "--auto", "--agent", "cursor"])
 
   expect(result.status).toBe(0)
 

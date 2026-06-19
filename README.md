@@ -31,10 +31,10 @@ As I was building this, I hope this project will provide a way to **democratize*
 
 ```bash
 
-# Run the full install flow in your current directory
+# Detect and install matches in your current directory
 npx bttrai
 
-# Install for a different project directory
+# Run against a different project directory
 npx bttrai ./my-app
 
 # Auto-approve install for specific agents
@@ -46,36 +46,57 @@ npx bttrai --skills
 # Install only MCP servers
 npx bttrai --mcp
 
-# Detect what matches the current project
-npx bttrai detect
+# Print matches without installing anything
+npx bttrai detect --list
 
-# Detect what matches a different project directory
-npx bttrai detect ./my-app
-
-# Output JSON for scripts/automation
+# Output JSON for scripts/automation (no execution)
 npx bttrai detect --json
+
+# Install a package AND its matching MCP servers + skills
+npx bttrai install ai
+npx bttrai install ai zod
+
+# Native package-manager flags go AFTER `--` (forwarded verbatim)
+npx bttrai install ai -- -D
+npx bttrai install ai@5 -- --save-exact
+
+# Target a different project directory
+npx bttrai install ai --project ./my-app
+
+# Scope which extras get installed
+npx bttrai install ai --mcp
+npx bttrai install ai --skills
+
+# Non-interactive (CI)
+npx bttrai install ai --auto --agent cursor
 
 ```
 
 ### Commands
 
-| Command          | Description                                           |
-| ---------------- | ----------------------------------------------------- |
-| `bttrai`         | Default install flow                                  |
-| `bttrai detect`  | Detect matching MCP servers and skills                |
-| `bttrai install` | Run the install flow explicitly - this is the default |
+| Command           | Description                                                     |
+| ----------------- | -------------------------------------------------------------- |
+| `bttrai`          | Default — detect the project stack and install matching extras |
+| `bttrai detect`   | Detect matching MCP servers and skills, then install them      |
+| `bttrai install`  | Install a package and its matching MCP servers + skills        |
 
 ### Options
 
-| Option           | Applies to          | Description                                   |
-| ---------------- | ------------------- | --------------------------------------------- |
-| `<path>`         | `detect`, `install` | Target a different project directory          |
-| `--help`         | all commands        | Show command usage and available options      |
-| `--json`         | `detect`, `install` | Output machine-readable JSON                  |
-| `--auto`         | `install`           | Skip prompts and auto-select detected matches |
-| `--agent <name>` | `install`           | Choose one or more agents to install into     |
-| `--skills`       | `install`           | Only include skills                           |
-| `--mcp`          | `install`           | Only include MCP servers                      |
+| Option             | Applies to          | Description                                   |
+| ------------------ | ------------------- | --------------------------------------------- |
+| `<path>`           | `detect`            | Target a different project directory          |
+| `--project <path>` | `install`           | Target a different project directory          |
+| `--help`           | all                 | Show command usage and available options      |
+| `--list`           | `detect`            | Print matches only, install nothing           |
+| `--json`           | `detect`, `install` | Output machine-readable JSON (no execution)   |
+| `--auto`           | `detect`, `install` | Skip prompts and auto-select detected matches |
+| `--agent <name>`   | `detect`, `install` | Choose one or more agents to install into     |
+| `--skills`         | `detect`, `install` | Only include skills                           |
+| `--mcp`            | `detect`, `install` | Only include MCP servers                      |
+
+`detect` takes the project directory as a positional argument (`bttrai ./my-app`); `install` takes it as the `--project` flag, since its positional slot holds the package names.
+
+For `bttrai install`, native package-manager flags (`-D`, `--save-exact`, …) must come **after `--`** — everything past `--` is forwarded verbatim to the detected package manager (`npm install`, `bun add`, `pnpm add`, `yarn add`, `deno add npm:`). Tokens **before** `--` are parsed by bttrai, and the package names are read from them to install matching MCP servers + skills.
 
 > [!IMPORTANT]
 > `--auto` requires at least one `--agent`. I also wouldn't recommend using it unless you're sure.
