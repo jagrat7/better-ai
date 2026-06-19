@@ -7,6 +7,8 @@ import pc from "picocolors"
 import { resolve } from "path"
 import { detect } from "./services/detect"
 import { install } from "./services/install"
+import { installOptions } from "./services/install/types"
+import { hoistInstallFlags } from "./services/install/utils"
 import { assertProjectExists } from "./services/shared/utils"
 import { renderHeader } from "./components/header"
 
@@ -29,19 +31,6 @@ const procedure = t.procedure.use(async ({ getRawInput, next }) => {
   return next()
 })
 
-// Options shared by `detect` and `install`. Each command extends this with its
-// own positional and command-specific flags.
-const baseOptions = z.object({
-  project: z.string().optional().describe("Path to project directory"),
-  json: z.boolean().optional().describe("Output as JSON"),
-  auto: z.boolean().optional().describe("Auto-approve installation"),
-  agent: z
-    .array(z.string())
-    .optional()
-    .describe("Agents to install to (e.g. cursor, claude-code)"),
-  skills: z.boolean().optional().describe("Include only skills in installation"),
-  mcp: z.boolean().optional().describe("Include only MCP servers in installation"),
-})
 
 const router = t.router({
   detect: procedure
@@ -50,10 +39,10 @@ const router = t.router({
       default: true,
     })
     .input(
-      baseOptions.extend({
+      installOptions.extend({
         // detect takes the project as a positional; install keeps it as a flag
         // (its positional is `packages`).
-        project: baseOptions.shape.project.meta({ positional: true }),
+        project: installOptions.shape.project.meta({ positional: true }),
         list: z.boolean().optional().describe("Print matches only, install nothing"),
       }),
     )
@@ -81,7 +70,7 @@ const router = t.router({
         "Install package(s) and matching MCP servers + skills. Pass native package-manager flags (e.g. -D) after `--`.",
     })
     .input(
-      baseOptions.extend({
+      installOptions.extend({
         packages: z
           .array(z.string())
           .optional()
@@ -91,15 +80,21 @@ const router = t.router({
       }),
     )
     .mutation(async ({ input }) => {
+      // Hoist any bttrai flags the user placed after `--` (a common mistake) so
+      // they take effect regardless of position; forward only the rest to the
+      // package manager. Flags parsed before `--` still win when both are set.
+      const hoisted = hoistInstallFlags(input.packages ?? [])
+      const project = resolve(input.project ?? hoisted.project ?? ".")
+      await assertProjectExists(project)
       await install({
         type: "package",
-        project: resolve(input.project ?? "."),
-        rawArgs: input.packages ?? [],
-        mcp: input.mcp,
-        skills: input.skills,
-        agent: input.agent,
-        auto: input.auto,
-        json: input.json,
+        project,
+        rawArgs: hoisted.rest,
+        mcp: input.mcp ?? hoisted.mcp,
+        skills: input.skills ?? hoisted.skills,
+        agent: input.agent ?? hoisted.agent,
+        auto: input.auto ?? hoisted.auto,
+        json: input.json ?? hoisted.json,
       })
     }),
 })

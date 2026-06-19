@@ -12,6 +12,8 @@ import {
 import type { AgentOption, McpServerEntry } from "../../registry/types"
 import { getSkillDetectionSourceHint } from "../shared/skill-source"
 import type { ResolvedSkillEntry } from "../matcher/types"
+import { z } from "zod"
+import { installOptions, type InstallFlags } from "./types"
 
 export type InstallFailure<T> = {
   item: T
@@ -284,6 +286,72 @@ export function warnGlobalOnlyAgents(selected: string[], agents: AgentOption[]) 
 // recovering package names so a path (e.g. the `../app` in `-- -C ../app`) isn't
 // mistaken for a package.
 const projectDirFlags = new Set(["-C", "--dir", "--prefix", "--cwd"])
+
+// The shared install flags (all optional) plus the leftover tokens to forward.
+export type HoistedInstallFlags = InstallFlags & {
+  // Package names + genuine package-manager flags, forwarded verbatim.
+  rest: string[]
+}
+
+// How a flag consumes its arguments: a boolean is a bare switch, a value takes
+// one token, an array greedily consumes following non-flag tokens.
+type FlagArity = "boolean" | "value" | "array"
+
+function flagArity(schema: z.ZodType): FlagArity {
+  // Peel the `.optional()` wrapper to inspect the underlying type.
+  const wrapped = schema as { unwrap?: () => z.ZodType }
+  const inner = typeof wrapped.unwrap === "function" ? wrapped.unwrap() : schema
+  if (inner instanceof z.ZodBoolean) return "boolean"
+  if (inner instanceof z.ZodArray) return "array"
+  return "value"
+}
+
+// `--flag` -> arity, derived from the shared schema so the recognised flags and
+// their value handling never drift from `installOptions`.
+const installFlagArities = new Map<string, FlagArity>(
+  Object.entries(installOptions.shape).map(([key, schema]) => [
+    `--${key}`,
+    flagArity(schema as z.ZodType),
+  ]),
+)
+
+// Splits a raw arg list into bttrai's own flags vs. everything else. This lets
+// `--project`, `--skills`, etc. work even when they land after `--` (where they
+// would otherwise be forwarded blindly to the package manager). Everything not
+// recognised — package names and real package-manager flags — goes to `rest`.
+//   - value flags take the next token (`--project ./app`)
+//   - array flags consume following non-flag tokens (`--agent cursor claude-code`)
+export function hoistInstallFlags(rawArgs: string[]): HoistedInstallFlags {
+  const out: HoistedInstallFlags = { rest: [] }
+  const flags = out as Record<string, unknown>
+
+  for (let i = 0; i < rawArgs.length; i++) {
+    const token = rawArgs[i]
+    if (!token) continue
+
+    const arity = installFlagArities.get(token)
+
+    if (!arity) {
+      out.rest.push(token)
+      continue
+    }
+
+    const key = token.slice(2)
+    if (arity === "boolean") {
+      flags[key] = true
+    } else if (arity === "value") {
+      flags[key] = rawArgs[++i]
+    } else {
+      const values: string[] = []
+      while (i + 1 < rawArgs.length && !rawArgs[i + 1]!.startsWith("-")) {
+        values.push(rawArgs[++i]!)
+      }
+      flags[key] = [...((flags[key] as string[] | undefined) ?? []), ...values]
+    }
+  }
+
+  return out
+}
 
 // Pulls installable package names out of a raw package-manager arg string so
 // their registry extras can be resolved. Contract:
