@@ -24,7 +24,11 @@ const procedure = t.procedure.use(async ({ getRawInput, next }) => {
     console.error(renderHeader())
   }
   try {
-    await assertProjectExists(resolve((opts?.project as string | undefined) ?? "."))
+    await assertProjectExists(
+      resolve(
+        (opts?.project as string | undefined) ?? (opts?.path as string | undefined) ?? ".",
+      ),
+    )
   } catch (error) {
     console.error(pc.red(error instanceof Error ? error.message : String(error)))
     process.exit(1)
