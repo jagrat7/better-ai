@@ -1,5 +1,6 @@
 import pkg from "../../package.json"
 import { theme } from "./theme"
+import { renderHeading } from "./heading"
 
 const LOGO_BETTER_LINES = [
   "  ██████╗ ███████╗████████╗████████╗███████╗██████╗ ",
@@ -66,7 +67,7 @@ function renderDualLogo(): string {
 export function renderHeader(): string {
   const terminalWidth = process.stdout.columns ?? 80
 
-  const title = terminalWidth >= LOGO_WIDTH ? renderDualLogo() : theme.heading(SIMPLE)
+  const title = terminalWidth >= LOGO_WIDTH ? renderDualLogo() : renderHeading(SIMPLE)
   const subtitle = theme.hint(`  v${pkg.version} — ${pkg.description}`)
 
   return `${title}\n${subtitle}\n`
