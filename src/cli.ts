@@ -41,14 +41,15 @@ const router = t.router({
     })
     .input(
       installOptions.extend({
-        // detect takes the project as a positional; install keeps it as a flag
-        // (its positional is `packages`).
-        project: installOptions.shape.project.meta({ positional: true }),
+        // detect accepts the project positionally (`path`) or via the inherited
+        // `--project` flag; the flag wins when both are given. install keeps
+        // `project` as a flag and uses `packages` for its positional.
+        path: installOptions.shape.project.meta({ positional: true }),
         list: z.boolean().optional().describe("Print matches only, install nothing"),
       }),
     )
     .mutation(async ({ input }) => {
-      const project = resolve(input.project ?? ".")
+      const project = resolve(input.project ?? input.path ?? ".")
       // Read-only modes: --list always prints, --json without --auto prints matches
       // without executing. Both skip the interactive install flow entirely.
       if (input.list || (input.json && !input.auto)) {
