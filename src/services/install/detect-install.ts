@@ -53,6 +53,7 @@ export class DetectInstallService
       agent,
       project: detected.project,
       json,
+      auto,
       hasServers: availableServers.length > 0,
       hasSkills: availableSkills.length > 0,
     })

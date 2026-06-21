@@ -73,6 +73,7 @@ export class PackageInstallService extends InstallBase {
       agent,
       project,
       json,
+      auto,
       hasServers: availableServers.length > 0,
       hasSkills: availableSkills.length > 0,
     })

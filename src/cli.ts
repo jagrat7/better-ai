@@ -82,7 +82,7 @@ const router = t.router({
           .optional()
           .describe("Packages to install; tokens after `--` are forwarded to the package manager")
           .meta({ positional: true }),
-        auto: z.boolean().optional().describe("Auto-approve installation (requires --agent)"),
+        auto: z.boolean().optional().describe("Auto-approve installation"),
       }),
     )
     .mutation(async ({ input }) => {

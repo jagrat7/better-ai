@@ -35,23 +35,25 @@ export abstract class InstallBase {
     agent,
     project,
     json,
+    auto,
     hasServers,
     hasSkills,
   }: {
     agent?: string[]
     project: string
     json?: boolean
+    auto?: boolean
     hasServers: boolean
     hasSkills: boolean
   }): Promise<{ mcp: string[]; skill: string[] } | null> {
-    if (agent) return this.resolveAgents(agent, { hasServers, hasSkills })
+    if (agent) return this.resolveAgents(agent, { hasServers, hasSkills, auto })
 
     const canonical = await configService.resolveConfiguredAgents(project, { json })
     if (!canonical || canonical.length === 0) return null
     // Canonical agents can translate to a one-sided result (e.g. vscode has no
     // skills target → `skill: []`). Fill the missing side so detected/config
     // agents don't silently skip installs the project still has content for.
-    return this.fillMissingAgentSides(translateAgents(canonical), { hasServers, hasSkills })
+    return this.fillMissingAgentSides(translateAgents(canonical), { hasServers, hasSkills, auto })
   }
 
   // Prompt for agents on whichever side resolved empty but the project still has
@@ -59,10 +61,15 @@ export abstract class InstallBase {
   // behave the same when a resolved agent only covers one CLI.
   private async fillMissingAgentSides(
     { mcp, skill }: { mcp: string[]; skill: string[] },
-    { hasServers, hasSkills }: { hasServers: boolean; hasSkills: boolean },
+    { hasServers, hasSkills, auto }: { hasServers: boolean; hasSkills: boolean; auto?: boolean },
   ): Promise<{ mcp: string[]; skill: string[] }> {
     const resolvedMcp = [...mcp]
     const resolvedSkill = [...skill]
+
+    // Auto mode can't prompt (CI / non-TTY), so honor whatever the resolved
+    // agents cover and skip the empty side rather than blocking on a select.
+    // We never invent agents the project didn't detect or pin.
+    if (auto) return { mcp: resolvedMcp, skill: resolvedSkill }
 
     if (resolvedMcp.length === 0 && hasServers) {
       log.info("None of the specified agents support MCP — select MCP agents:")
@@ -98,7 +105,7 @@ export abstract class InstallBase {
 
   protected async resolveAgents(
     agents: string[],
-    { hasServers, hasSkills }: { hasServers: boolean; hasSkills: boolean },
+    { hasServers, hasSkills, auto }: { hasServers: boolean; hasSkills: boolean; auto?: boolean },
   ): Promise<{ mcp: string[]; skill: string[] }> {
     const mcpValues = new Set(mcpAgents.map((a) => a.value))
     const skillValues = new Set(skillAgents.map((a) => a.value))
@@ -131,7 +138,7 @@ export abstract class InstallBase {
       }
     }
 
-    return this.fillMissingAgentSides({ mcp, skill }, { hasServers, hasSkills })
+    return this.fillMissingAgentSides({ mcp, skill }, { hasServers, hasSkills, auto })
   }
 
   async promptForSelection(
