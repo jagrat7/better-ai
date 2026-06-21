@@ -1,2 +1,3 @@
 - dont spam multiple functions and types, intergrate into existing code
 - dont use ccc commands
+- dont use index.ts to tunnel exports, export from the file itself

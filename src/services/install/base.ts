@@ -5,8 +5,15 @@ import {
   getSkillDetectionSourceKey,
 } from "../shared/skill-source"
 import { promptWithCancel } from "../shared/utils"
+import { configService } from "../config"
 import { agentOptionsWithHints, warnGlobalOnlyAgents } from "./utils"
-import { mcpAgents, skillAgents, defaultMcpAgents, defaultSkillAgents } from "../../registry/agents"
+import {
+  defaultMcpAgents,
+  defaultSkillAgents,
+  mcpAgents,
+  skillAgents,
+  translateAgents,
+} from "../../registry/agents"
 import type { DetectResult } from "../detect/types"
 import type { InstallResult } from "./types"
 
@@ -19,6 +26,31 @@ type SelectionResult = Pick<
 // (detect-driven) install and the package install. Both flows pick from the same
 // matched servers/skills, so the prompts and `--agent` resolution live here.
 export abstract class InstallBase {
+  // Resolve install targets per the config plan precedence:
+  //   --agent → (autoAgents ? auto-detect : config.agents) → null (prompt)
+  // `--agent` uses the broad agent set (with missing-side prompts); config /
+  // auto-detected agents are canonical and translated to MCP/skill targets.
+  // bttrai never persists agents.
+  protected async resolveInstallAgents({
+    agent,
+    project,
+    json,
+    hasServers,
+    hasSkills,
+  }: {
+    agent?: string[]
+    project: string
+    json?: boolean
+    hasServers: boolean
+    hasSkills: boolean
+  }): Promise<{ mcp: string[]; skill: string[] } | null> {
+    if (agent) return this.resolveAgents(agent, { hasServers, hasSkills })
+
+    const canonical = await configService.resolveConfiguredAgents(project, { json })
+    if (!canonical || canonical.length === 0) return null
+    return translateAgents(canonical)
+  }
+
   protected async resolveAgents(
     agents: string[],
     { hasServers, hasSkills }: { hasServers: boolean; hasSkills: boolean },

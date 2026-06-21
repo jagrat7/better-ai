@@ -7,6 +7,7 @@ import pc from "picocolors"
 import { resolve } from "path"
 import { detect } from "./services/detect"
 import { install } from "./services/install"
+import { configService } from "./services/config"
 import { installOptions } from "./services/install/types"
 import { hoistInstallFlags } from "./services/install/utils"
 import { assertProjectExists } from "./services/shared/utils"
@@ -96,6 +97,23 @@ const router = t.router({
         auto: input.auto ?? hoisted.auto,
         json: input.json ?? hoisted.json,
       })
+    }),
+  // No project-assert middleware: `bttrai config` operates on the user config
+  // file, not a project directory.
+  config: t.procedure
+    .meta({ description: "Open the bttrai config file (creates it if missing)" })
+    .input(z.object({ json: z.boolean().optional().describe("Print the config path as JSON") }))
+    .mutation(async ({ input }) => {
+      const result = await configService.run({ json: input.json })
+      if (input.json) {
+        console.log(JSON.stringify(configService.json(result), null, 2))
+        return
+      }
+      if (!process.stdout.isTTY) {
+        console.log(result.path)
+        return
+      }
+      await configService.command(result)
     }),
 })
 

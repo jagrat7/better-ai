@@ -1,8 +1,19 @@
-import { stat } from "node:fs/promises"
+import { access, stat } from "node:fs/promises"
 import { cancel, isCancel, log, spinner } from "@clack/prompts"
 import pc from "picocolors"
 import { detectService } from "../detect"
 import type { DetectInput, DetectResult } from "../detect/types"
+
+// Cheap existence check — true if `path` exists, false otherwise. Shared by the
+// config (agent-marker) and install (package-manager) detection loops.
+export async function pathExists(path: string): Promise<boolean> {
+  try {
+    await access(path)
+    return true
+  } catch {
+    return false
+  }
+}
 
 // Fail fast with a clear message when the target project directory is missing
 // or isn't a directory, instead of letting the package manager / installer

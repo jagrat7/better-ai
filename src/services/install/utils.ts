@@ -1,4 +1,3 @@
-import { access } from "node:fs/promises"
 import { join } from "node:path"
 import { log } from "@clack/prompts"
 import { execa } from "execa"
@@ -11,6 +10,7 @@ import {
 } from "../../registry/package-managers"
 import type { AgentOption, McpServerEntry } from "../../registry/types"
 import { getSkillDetectionSourceHint } from "../shared/skill-source"
+import { pathExists } from "../shared/utils"
 import type { ResolvedSkillEntry } from "../matcher/types"
 import { z } from "zod"
 import { installOptions, type InstallFlags } from "./types"
@@ -34,15 +34,6 @@ export type InstallExecutionSummary = {
   mcp: {
     installed: McpServerEntry[]
     failed: Array<InstallFailure<McpServerEntry>>
-  }
-}
-
-async function pathExists(path: string) {
-  try {
-    await access(path)
-    return true
-  } catch {
-    return false
   }
 }
 
@@ -189,6 +180,9 @@ export async function executeInstallations(
   }
 
   for (const skill of selectedSkills) {
+    // No skill agents resolved (e.g. a project whose only detected agent has no
+    // skills CLI) — skip rather than emit a `--agent`-less command.
+    if (skillAgents.length === 0) break
     const installArgs = [
       "skills@latest",
       "add",
@@ -212,6 +206,7 @@ export async function executeInstallations(
   }
 
   for (const server of selectedServers) {
+    if (mcpAgents.length === 0) break
     const installArgs = [
       "add-mcp@latest",
       server.target,
