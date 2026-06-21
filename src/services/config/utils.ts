@@ -228,9 +228,18 @@ async function handleInvalidConfig(
     return defaultConfig
   }
 
-  const opened = await openInEditor(path)
-  if (!opened) {
-    log.info(`Set $EDITOR (or "editor" in config) to open it automatically. Config path: ${path}`)
+  // openInEditor throws when a configured editor / $EDITOR command fails (only
+  // the OS-default fallback swallows errors). Catch it so an invalid config plus
+  // a broken $EDITOR degrades to printing the path instead of a raw stack trace,
+  // matching configService.command's handling.
+  try {
+    const opened = await openInEditor(path)
+    if (!opened) {
+      log.info(`Set $EDITOR (or "editor" in config) to open it automatically. Config path: ${path}`)
+    }
+  } catch (error) {
+    log.warn(`Could not open an editor: ${error instanceof Error ? error.message : String(error)}`)
+    log.info(`Config path: ${path}`)
   }
   log.info("Re-run bttrai once you've fixed the config.")
   process.exit(1)
