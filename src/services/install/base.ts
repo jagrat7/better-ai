@@ -46,14 +46,19 @@ export abstract class InstallBase {
     hasServers: boolean
     hasSkills: boolean
   }): Promise<{ mcp: string[]; skill: string[] } | null> {
-    if (agent) return this.resolveAgents(agent, { hasServers, hasSkills, auto })
+    if (agent) return this.resolveAgents(agent, { hasServers, hasSkills, auto, json })
 
     const canonical = await configService.resolveConfiguredAgents(project, { json })
     if (!canonical || canonical.length === 0) return null
     // Canonical agents can translate to a one-sided result (e.g. vscode has no
     // skills target → `skill: []`). Fill the missing side so detected/config
     // agents don't silently skip installs the project still has content for.
-    return this.fillMissingAgentSides(translateAgents(canonical), { hasServers, hasSkills, auto })
+    return this.fillMissingAgentSides(translateAgents(canonical), {
+      hasServers,
+      hasSkills,
+      auto,
+      json,
+    })
   }
 
   // Prompt for agents on whichever side resolved empty but the project still has
@@ -61,15 +66,22 @@ export abstract class InstallBase {
   // behave the same when a resolved agent only covers one CLI.
   private async fillMissingAgentSides(
     { mcp, skill }: { mcp: string[]; skill: string[] },
-    { hasServers, hasSkills, auto }: { hasServers: boolean; hasSkills: boolean; auto?: boolean },
+    {
+      hasServers,
+      hasSkills,
+      auto,
+      json,
+    }: { hasServers: boolean; hasSkills: boolean; auto?: boolean; json?: boolean },
   ): Promise<{ mcp: string[]; skill: string[] }> {
     const resolvedMcp = [...mcp]
     const resolvedSkill = [...skill]
 
-    // Auto mode can't prompt (CI / non-TTY), so honor whatever the resolved
+    // Non-interactive contexts can't prompt, so honor whatever the resolved
     // agents cover and skip the empty side rather than blocking on a select.
-    // We never invent agents the project didn't detect or pin.
-    if (auto) return { mcp: resolvedMcp, skill: resolvedSkill }
+    // This covers --auto as well as JSON / non-TTY runs (e.g. the package
+    // install path, which doesn't coerce `auto` from `json`). We never invent
+    // agents the project didn't detect or pin.
+    if (auto || json || !process.stdout.isTTY) return { mcp: resolvedMcp, skill: resolvedSkill }
 
     if (resolvedMcp.length === 0 && hasServers) {
       log.info("None of the specified agents support MCP — select MCP agents:")
@@ -105,7 +117,12 @@ export abstract class InstallBase {
 
   protected async resolveAgents(
     agents: string[],
-    { hasServers, hasSkills, auto }: { hasServers: boolean; hasSkills: boolean; auto?: boolean },
+    {
+      hasServers,
+      hasSkills,
+      auto,
+      json,
+    }: { hasServers: boolean; hasSkills: boolean; auto?: boolean; json?: boolean },
   ): Promise<{ mcp: string[]; skill: string[] }> {
     const mcpValues = new Set(mcpAgents.map((a) => a.value))
     const skillValues = new Set(skillAgents.map((a) => a.value))
@@ -138,7 +155,7 @@ export abstract class InstallBase {
       }
     }
 
-    return this.fillMissingAgentSides({ mcp, skill }, { hasServers, hasSkills, auto })
+    return this.fillMissingAgentSides({ mcp, skill }, { hasServers, hasSkills, auto, json })
   }
 
   async promptForSelection(
