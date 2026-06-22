@@ -31,10 +31,15 @@ export type MatcherInput = {
   discover?: boolean
 }
 
-export type MatcherProgress = {
-  phase: "github" | "fallback"
-  total: number
-}
+export type MatcherProgress =
+  // Stage 1 live discovery (package-install only). "discover" opens the spinner
+  // with the dep count; "discover-step" streams atomic sub-actions (npm lookup,
+  // GitHub repo scan, GitHub search) as each tier runs.
+  | { phase: "discover"; total: number }
+  | { phase: "discover-step"; message: string }
+  // Stage 2 GitHub fetch of registry-pinned repos / stage 3 hand-maintained fallback.
+  | { phase: "github"; total: number }
+  | { phase: "fallback"; total: number }
 
 export type MatcherResult = {
   servers: McpServerEntry[]

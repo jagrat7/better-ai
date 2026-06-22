@@ -66,8 +66,36 @@ export class PackageInstallService extends InstallBase {
     const installedSkills = await readSkillsLock(project)
     // discover: resolve skills for named packages absent from the static registry
     // (npm repo metadata → GitHub repo search). Safe here — only the few packages
-    // the user explicitly installed are probed.
-    const matches = await matcherService.run({ deps, installedSkills, discover: true })
+    // the user explicitly installed are probed. A spinner streams each atomic
+    // step (npm lookup → GitHub repo scan → GitHub search) so the wait is legible.
+    const searchSpinner = spinner()
+    searchSpinner.start(`Searching for skills across ${deps.size} package(s)...`)
+    const matches = await matcherService.run({
+      deps,
+      installedSkills,
+      discover: true,
+      onProgress: (progress) => {
+        switch (progress.phase) {
+          // Stage 1: live discovery — stream the exact npm/GitHub action.
+          case "discover-step":
+            searchSpinner.message(progress.message)
+            break
+          // Stage 2: GitHub fetch of registry-pinned repos.
+          case "github":
+            if (progress.total > 0) {
+              searchSpinner.message(`Fetching ${progress.total} registry-pinned repo(s) from GitHub...`)
+            }
+            break
+          // Stage 3: fall back to the hand-maintained list.
+          case "fallback":
+            if (progress.total > 0) {
+              searchSpinner.message(`Falling back to the hand-maintained list (${progress.total} repo(s))...`)
+            }
+            break
+        }
+      },
+    })
+    searchSpinner.stop("Skill search complete")
     const matchedServers = matches.servers.filter((server) => !server.when.deps.includes("*"))
     const matchedSkills = matches.skills.filter((skill) => !skill.when.deps.includes("*"))
 

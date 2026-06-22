@@ -72,6 +72,9 @@ export async function runDetectionWithProgress(
         s.start(`Fetching skills from GitHub... (${progress.total} matches)`)
         return
       }
+      // The detect flow never opts into dynamic discovery, so the stage-1
+      // discover phases never reach here — ignore them defensively.
+      if (progress.phase !== "fallback") return
       // phase === "fallback": GitHub fetches finished, transition the spinner.
       s.stop("Fetched skills from GitHub")
       // Skip fallback step entirely when every source returned GitHub skills.

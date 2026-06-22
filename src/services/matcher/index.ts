@@ -12,11 +12,14 @@ export const matcherService = {
     return mcpServers.filter((entry) => matcherUtils.matches(entry.when, deps))
   },
   /**
-   * Skill resolution, freshest-source-first:
-   *   1. Dynamic discovery (when `discover`): resolve each dep live via npm +
-   *      GitHub. Fresher than the hand-maintained registry, so it takes priority.
-   *   2. Live-fetch the registry-pinned repos — only deps stage 1 didn't cover.
-   *   3. Fall back to the hand-maintained list for repos that returned nothing.
+   * Skill resolution, freshest-source-first. Stages 1 and 2 both fetch the real
+   * SKILL.md set from GitHub — they differ only in how the repo is identified:
+   *   1. Discover the repo live (npm metadata or GitHub search), then fetch its
+   *      skills. Package-install only; freshest, so it takes priority.
+   *   2. Repo identity comes from the static registry; fetch its current skills.
+   *      Only deps stage 1 didn't already cover.
+   *   3. Fallback (no GitHub): repos the stage-2 fetch returned nothing for use
+   *      the registry's hand-maintained skill list instead.
    *
    * @param onProgress Invoked once per phase so the UI can drive spinners.
    */
@@ -28,30 +31,39 @@ export const matcherService = {
   ): Promise<ResolvedSkillEntry[]> {
     const matchedEntries = skills.filter((entry) => matcherUtils.matches(entry.when, deps))
 
-    // ── Stage 1: dynamic discovery (package-install only) ──────────────────
-    // Resolve each dep live, in parallel, off npm registry metadata
-    // (registry.npmjs.org/<pkg> → repository.url) plus GitHub search; fresh
-    // sources win over the static registry. `seenSources` dedups repos (two deps
-    // → same repo collapse to one entry); `coveredDeps` records resolved deps.
+    // ── Stage 1: discover the repo live, then fetch its skills ─────────────
+    // Package-install only. For each dep, in parallel, find the repo (npm
+    // registry.npmjs.org/<pkg> → repository.url, else GitHub search) and tree-
+    // scan it for SKILL.md files — same GitHub fetch stage 2 does, but the repo
+    // is discovered rather than registry-pinned. Fresh sources win over the
+    // static registry. `seenSources` dedups repos (two deps → same repo collapse
+    // to one entry); `coveredDeps` records resolved deps.
     const dynamicEntries: ResolvedSkillEntry[] = []
     const seenSources = new Set<string>()
     const coveredDeps = new Set<string>()
     if (discover) {
+      onProgress?.({ phase: "discover", total: deps.size })
       const hits = await Promise.all(
         // Three tiers per dep, first repo with a SKILL.md wins (example: dep `hono`).
+        // Each tier streams an atomic step so the spinner names the exact action
+        // in flight (npm lookup → GitHub repo scan → GitHub search).
         [...deps].map(async (dep) => {
+          // 1a. npm `repository` field → the dep's own repo (hono → honojs/hono).
+          onProgress?.({ phase: "discover-step", message: `Looking up ${dep} on npm` })
           const npmRepo = await matcherUtils.resolveNpmRepo(dep)
           if (npmRepo) {
-            // 1a. npm `repository` field → the dep's own repo (hono → honojs/hono).
+            onProgress?.({ phase: "discover-step", message: `Scanning ${npmRepo} on GitHub for skills` })
             const skills = await matcherUtils.discoverRepoSkills(npmRepo)
             if (skills.length > 0) return { source: npmRepo, dep, skills }
             // 1b. npm owner + `*skill*` repo → a sibling repo under that owner (user:honojs skill).
             const owner = npmRepo.split("/")[0]
+            onProgress?.({ phase: "discover-step", message: `Searching ${owner}'s GitHub repos for ${dep} skills` })
             const ownerHit = await matcherUtils.resolveFromSearch(`user:${owner} skill in:name`, dep)
             if (ownerHit) return ownerHit
           }
           // 1c. global `<pkg> skill` search → an unrelated owner (hono → yusukebe/hono-skill).
           const term = dep.split("/").at(-1) ?? dep
+          onProgress?.({ phase: "discover-step", message: `Searching GitHub for ${term} skills` })
           return matcherUtils.resolveFromSearch(`${term} skill`, dep)
         }),
       )
@@ -74,13 +86,14 @@ export const matcherService = {
       }
     }
 
-    // ── Stage 2: live-fetch the registry-pinned repos ─────────────────────
-    // Each registry entry pins a `source` repo + a hand-maintained `skills` list.
-    // First drop entries dynamic already covered: same source, or every
-    // triggering dep already resolved live. The registry only tells us WHICH
-    // repo to look at — we still tree-scan it live for the CURRENT skills
-    // (fresher than the hand-maintained `skills` list). `configuredSkills` is
-    // computed now as the stage-3 fallback.
+    // ── Stage 2: fetch the registry-pinned repos from GitHub ───────────────
+    // Same GitHub tree-scan as stage 1; the only difference is the repo identity
+    // comes from the registry instead of live discovery. Each entry pins a
+    // `source` repo + a hand-maintained `skills` list. First drop entries
+    // dynamic already covered: same source, or every triggering dep already
+    // resolved live. We still tree-scan the pinned repo for its CURRENT skills
+    // (fresher than the hand-maintained list); `configuredSkills` is computed now
+    // as the stage-3 fallback.
     const gapEntries = matchedEntries.filter(
       (entry) =>
         !seenSources.has(entry.source) &&
@@ -99,10 +112,10 @@ export const matcherService = {
       }),
     )
 
-    // ── Stage 3: fall back to the hand-maintained list ─────────────────────
-    // Repos the live scan returned nothing for (404 / rate-limited / no
-    // SKILL.md) use the registry-declared `skills` instead. Count them first
-    // so the spinner can show how many entries are on the fallback path.
+    // ── Stage 3: fallback — no GitHub, use the hand-maintained list ────────
+    // The stage-2 fetch returned nothing for these repos (404 / rate-limited /
+    // no SKILL.md), so use the registry-declared `skills` instead. Count them
+    // first so the spinner can show how many entries are on the fallback path.
     const fallbackCount = fetched.filter(({ githubSkills }) => githubSkills.length === 0).length
     onProgress?.({ phase: "fallback", total: fallbackCount })
 
