@@ -189,8 +189,25 @@ export const matcherService = {
     )
 
     // Local (free, version-pinned) first, fresh dynamic next, possibly-stale
-    // registry last.
+    // registry last. A registry entry can span several deps (e.g. vercel/ai
+    // covers both `ai` and `openai`); if stage 0/1 resolved one of those deps
+    // under a different source key, the stage-2 tree-scan still re-fetches the
+    // whole repo, so the same skill name surfaces twice. Dedup by skill name in
+    // source-freshness order — the first (freshest) occurrence wins, and any
+    // entry left with no unique skills is dropped.
+    const seenSkills = new Set<string>()
     return [...localEntries, ...dynamicEntries, ...registryEntries]
+      .map((entry) => {
+        const keptPaths: string[] = []
+        const resolvedSkills = entry.resolvedSkills.filter((name, i) => {
+          if (seenSkills.has(name)) return false
+          seenSkills.add(name)
+          keptPaths.push(entry.resolvedSkillPaths[i] ?? name)
+          return true
+        })
+        return { ...entry, resolvedSkills, resolvedSkillPaths: keptPaths }
+      })
+      .filter((entry) => entry.resolvedSkills.length > 0)
   },
   /**
    * Public entry point: run MCP + skill matching together. MCP matching is synchronous
