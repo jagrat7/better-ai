@@ -7,6 +7,7 @@ import pc from "picocolors"
 import { resolve } from "path"
 import { detect } from "./services/detect"
 import { install } from "./services/install"
+import { configService } from "./services/config"
 import { installOptions } from "./services/install/types"
 import { hoistInstallFlags } from "./services/install/utils"
 import { assertProjectExists } from "./services/shared/utils"
@@ -23,7 +24,11 @@ const procedure = t.procedure.use(async ({ getRawInput, next }) => {
     console.error(renderHeader())
   }
   try {
-    await assertProjectExists(resolve((opts?.project as string | undefined) ?? "."))
+    await assertProjectExists(
+      resolve(
+        (opts?.project as string | undefined) ?? (opts?.path as string | undefined) ?? ".",
+      ),
+    )
   } catch (error) {
     console.error(pc.red(error instanceof Error ? error.message : String(error)))
     process.exit(1)
@@ -40,14 +45,15 @@ const router = t.router({
     })
     .input(
       installOptions.extend({
-        // detect takes the project as a positional; install keeps it as a flag
-        // (its positional is `packages`).
-        project: installOptions.shape.project.meta({ positional: true }),
+        // detect accepts the project positionally (`path`) or via the inherited
+        // `--project` flag; the flag wins when both are given. install keeps
+        // `project` as a flag and uses `packages` for its positional.
+        path: installOptions.shape.project.meta({ positional: true }),
         list: z.boolean().optional().describe("Print matches only, install nothing"),
       }),
     )
     .mutation(async ({ input }) => {
-      const project = resolve(input.project ?? ".")
+      const project = resolve(input.project ?? input.path ?? ".")
       // Read-only modes: --list always prints, --json without --auto prints matches
       // without executing. Both skip the interactive install flow entirely.
       if (input.list || (input.json && !input.auto)) {
@@ -76,7 +82,7 @@ const router = t.router({
           .optional()
           .describe("Packages to install; tokens after `--` are forwarded to the package manager")
           .meta({ positional: true }),
-        auto: z.boolean().optional().describe("Auto-approve installation (requires --agent)"),
+        auto: z.boolean().optional().describe("Auto-approve installation"),
       }),
     )
     .mutation(async ({ input }) => {
@@ -96,6 +102,23 @@ const router = t.router({
         auto: input.auto ?? hoisted.auto,
         json: input.json ?? hoisted.json,
       })
+    }),
+  // No project-assert middleware: `bttrai config` operates on the user config
+  // file, not a project directory.
+  config: t.procedure
+    .meta({ description: "Open the bttrai config file (creates it if missing)" })
+    .input(z.object({ json: z.boolean().optional().describe("Print the config path as JSON") }))
+    .mutation(async ({ input }) => {
+      const result = await configService.run({ json: input.json })
+      if (input.json) {
+        console.log(JSON.stringify(configService.json(result), null, 2))
+        return
+      }
+      if (!process.stdout.isTTY) {
+        console.log(result.path)
+        return
+      }
+      await configService.command(result)
     }),
 })
 

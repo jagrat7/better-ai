@@ -2,6 +2,10 @@ import { afterEach, expect, mock, spyOn, test } from "bun:test"
 import { detectService } from "../../src/services/detect"
 import { DetectInstallService } from "../../src/services/install/detect-install"
 
+// Keep config resolution hermetic: a missing file makes auto mode fall back to
+// built-in defaults instead of reading the developer's real config.
+process.env.BTTRAI_CONFIG = "/nonexistent/bttrai-detect-install-test/config.json"
+
 afterEach(() => {
   mock.restore()
 })
@@ -31,16 +35,20 @@ const detectedResult = {
   ],
 }
 
-test("run errors when auto mode has no agent", async () => {
+test("run in auto mode without --agent resolves agents from config", async () => {
   const service = new DetectInstallService()
   spyOn(detectService, "run").mockResolvedValue(detectedResult)
-  spyOn(process, "exit").mockImplementation(((code?: number) => {
-    throw new Error(`exit:${code ?? 0}`)
-  }) as never)
+  spyOn(service as never, "resolveInstallAgents").mockResolvedValue({
+    mcp: ["cursor"],
+    skill: ["cursor"],
+  })
 
-  await expect(service.run({ project: detectedResult.project, auto: true })).rejects.toThrow(
-    "exit:1",
-  )
+  const result = await service.run({ project: detectedResult.project, auto: true })
+
+  expect(result.selectedServers).toEqual(detectedResult.servers)
+  expect(result.selectedSkills).toEqual(detectedResult.matched)
+  expect(result.selectedMcpAgents).toEqual(["cursor"])
+  expect(result.selectedSkillAgents).toEqual(["cursor"])
 })
 
 test("run passes only skills to prompt in skills-only scope", async () => {

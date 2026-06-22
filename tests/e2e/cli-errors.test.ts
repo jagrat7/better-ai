@@ -7,6 +7,10 @@ import { createTempDir, removeTempDir } from "../helpers/temp-dir"
 const currentDir = dirname(fileURLToPath(import.meta.url))
 const nextAppFixture = join(currentDir, "..", "fixtures", "projects", "next-app")
 
+// Point config resolution at a path that doesn't exist so auto mode falls back
+// to built-in defaults instead of reading the developer's real config.
+const noConfig = { BTTRAI_CONFIG: join(currentDir, "no-such-config-xyz.json") }
+
 const tempDirs: string[] = []
 
 afterEach(() => {
@@ -16,12 +20,12 @@ afterEach(() => {
   tempDirs.length = 0
 })
 
-test("detect auto without agent exits with an error", () => {
-  const result = runCli(["detect", nextAppFixture, "--json", "--auto"])
-  const output = `${result.stdout}\n${result.stderr}`
+test("detect auto without agent resolves agents automatically (no error)", () => {
+  const result = runCli(["detect", nextAppFixture, "--json", "--auto"], noConfig)
 
-  expect(result.status).toBe(1)
-  expect(output).toContain("--auto requires --agent to be specified")
+  expect(result.status).toBe(0)
+  const json = JSON.parse(result.stdout) as { selectedMcpServers: unknown[] }
+  expect(json.selectedMcpServers.length).toBeGreaterThan(0)
 })
 
 test("detect errors clearly when the project directory does not exist", () => {

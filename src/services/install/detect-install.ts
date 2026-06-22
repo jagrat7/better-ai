@@ -49,16 +49,20 @@ export class DetectInstallService
       }
     }
 
-    const resolvedAgents = agent
-      ? await this.resolveAgents(agent, {
-          hasServers: availableServers.length > 0,
-          hasSkills: availableSkills.length > 0,
-        })
-      : null
+    const resolvedAgents = await this.resolveInstallAgents({
+      agent,
+      project: detected.project,
+      json,
+      auto,
+      hasServers: availableServers.length > 0,
+      hasSkills: availableSkills.length > 0,
+    })
 
     if (auto) {
       if (!resolvedAgents) {
-        log.error("--auto requires --agent to be specified")
+        // Only reachable when agents are pinned (autoAgents: false) but the list
+        // is empty and no --agent was given — auto mode can't prompt.
+        log.error("No agents to install to. Pass --agent or pin agents via `bttrai config`.")
         outro(pc.dim("Done"))
         process.exit(1)
       }

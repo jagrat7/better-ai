@@ -69,22 +69,25 @@ export class PackageInstallService extends InstallBase {
       return
     }
 
-    const resolvedAgents = agent
-      ? await this.resolveAgents(agent, {
-          hasServers: availableServers.length > 0,
-          hasSkills: availableSkills.length > 0,
-        })
-      : null
+    const resolvedAgents = await this.resolveInstallAgents({
+      agent,
+      project,
+      json,
+      auto,
+      hasServers: availableServers.length > 0,
+      hasSkills: availableSkills.length > 0,
+    })
 
-    // Pick extras + agents: --auto installs everything (requires --agent). In
-    // non-interactive mode (JSON / non-TTY) we install extras only when the user
-    // explicitly chose target agents via --agent — otherwise we have no consent
-    // for which agents to write to, so we report the matches and skip them
-    // (the named package itself is already installed). Interactive mode prompts.
+    // Pick extras + agents: --auto installs everything. Agents come from --agent
+    // or, when that's absent, from config / auto-detect (see resolveInstallAgents).
+    // In non-interactive mode (JSON / non-TTY) we install extras only when target
+    // agents resolved — otherwise we have no consent for which agents to write to,
+    // so we report the matches and skip them (the named package itself is already
+    // installed). Interactive mode prompts.
     let selection: SelectionResult | null
     if (auto) {
       if (!resolvedAgents) {
-        log.error("--auto requires --agent to be specified")
+        log.error("No agents to install to. Pass --agent or pin agents via `bttrai config`.")
         outro(pc.dim("Done"))
         process.exit(1)
       }

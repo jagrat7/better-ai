@@ -37,7 +37,10 @@ npx bttrai
 # Run against a different project directory
 npx bttrai ./my-app
 
-# Auto-approve install for specific agents
+# Auto-approve — agents resolve automatically (no --agent needed)
+npx bttrai --auto
+
+# ...or pin specific agents for this run
 npx bttrai --auto --agent cursor claude-code
 
 # Install only skills
@@ -70,6 +73,9 @@ npx bttrai install ai --skills
 # Non-interactive (CI)
 npx bttrai install ai --auto --agent cursor
 
+# Open the config file to pin agents or edit presets
+npx bttrai config
+
 ```
 
 ### Commands
@@ -79,6 +85,7 @@ npx bttrai install ai --auto --agent cursor
 | `bttrai`          | Default — detect the project stack and install matching extras |
 | `bttrai detect`   | Detect matching MCP servers and skills, then install them      |
 | `bttrai install`  | Install a package and its matching MCP servers + skills        |
+| `bttrai config`   | Open the config file (creates it if missing) to pin agents     |
 
 ### Options
 
@@ -99,7 +106,32 @@ npx bttrai install ai --auto --agent cursor
 For `bttrai install`, native package-manager flags (`-D`, `--save-exact`, …) must come **after `--`** — everything past `--` is forwarded verbatim to the detected package manager (`npm install`, `bun add`, `pnpm add`, `yarn add`, `deno add npm:`). Tokens **before** `--` are parsed by bttrai, and the package names are read from them to install matching MCP servers + skills.
 
 > [!IMPORTANT]
-> `--auto` requires at least one `--agent`. I also wouldn't recommend using it unless you're sure.
+> `--auto` no longer needs `--agent` — agents resolve automatically (see [Config](#config)). Pass `--agent` only to override the targets for a run. I still wouldn't recommend `--auto` unless you're sure.
+
+## Config
+
+By default agents resolve automatically and **nothing about agents is stored**. You only need a config file if you want to pin a fixed set of agents (or, later, define presets). The file lives in your OS user config dir:
+
+| OS      | Path                                            |
+| ------- | ----------------------------------------------- |
+| Linux   | `~/.config/bttrai/config.json`                  |
+| macOS   | `~/Library/Application Support/bttrai/config.json` |
+| Windows | `%APPDATA%\bttrai\config.json`                  |
+
+Set `BTTRAI_CONFIG` to override the path. Run `bttrai config` to open (and lazily create) it.
+
+```jsonc
+{
+  "autoAgents": true, // resolve agents automatically; `agents` is ignored
+  "agents": [],        // used only when autoAgents:false — bttrai reads, never writes it
+  "editor": "nvim",    // optional — editor for `bttrai config` (wins over $EDITOR)
+  "presets": {}
+}
+```
+
+`bttrai config` opens the file in: `editor` from config → `$EDITOR` → the OS default text editor → (failing that) it just prints the path.
+
+Agent resolution order: `--agent` (always wins) → `autoAgents ? auto-detect : agents` → prompt. Pin agents by setting `"autoAgents": false` and listing canonical names (`cursor`, `claude-code`, `github-copilot`, `vscode`) in `agents`. The config is validated on every run; an invalid file stops the run (in a terminal it offers to open / reset / abort, otherwise it prints the errors and exits non-zero).
 
 ## Notes
 

@@ -5,8 +5,15 @@ import {
   getSkillDetectionSourceKey,
 } from "../shared/skill-source"
 import { promptWithCancel } from "../shared/utils"
+import { configService } from "../config"
 import { agentOptionsWithHints, warnGlobalOnlyAgents } from "./utils"
-import { mcpAgents, skillAgents, defaultMcpAgents, defaultSkillAgents } from "../../registry/agents"
+import {
+  defaultMcpAgents,
+  defaultSkillAgents,
+  mcpAgents,
+  skillAgents,
+  translateAgents,
+} from "../../registry/agents"
 import type { DetectResult } from "../detect/types"
 import type { InstallResult } from "./types"
 
@@ -19,9 +26,103 @@ type SelectionResult = Pick<
 // (detect-driven) install and the package install. Both flows pick from the same
 // matched servers/skills, so the prompts and `--agent` resolution live here.
 export abstract class InstallBase {
+  // Resolve install targets per the config plan precedence:
+  //   --agent → (autoAgents ? auto-detect : config.agents) → null (prompt)
+  // `--agent` uses the broad agent set (with missing-side prompts); config /
+  // auto-detected agents are canonical and translated to MCP/skill targets.
+  // bttrai never persists agents.
+  protected async resolveInstallAgents({
+    agent,
+    project,
+    json,
+    auto,
+    hasServers,
+    hasSkills,
+  }: {
+    agent?: string[]
+    project: string
+    json?: boolean
+    auto?: boolean
+    hasServers: boolean
+    hasSkills: boolean
+  }): Promise<{ mcp: string[]; skill: string[] } | null> {
+    if (agent) return this.resolveAgents(agent, { hasServers, hasSkills, auto, json })
+
+    const canonical = await configService.resolveConfiguredAgents(project, { json })
+    if (!canonical || canonical.length === 0) return null
+    // Canonical agents can translate to a one-sided result (e.g. vscode has no
+    // skills target → `skill: []`). Fill the missing side so detected/config
+    // agents don't silently skip installs the project still has content for.
+    return this.fillMissingAgentSides(translateAgents(canonical), {
+      hasServers,
+      hasSkills,
+      auto,
+      json,
+    })
+  }
+
+  // Prompt for agents on whichever side resolved empty but the project still has
+  // content for. Shared by the `--agent` and canonical/auto-detect paths so both
+  // behave the same when a resolved agent only covers one CLI.
+  private async fillMissingAgentSides(
+    { mcp, skill }: { mcp: string[]; skill: string[] },
+    {
+      hasServers,
+      hasSkills,
+      auto,
+      json,
+    }: { hasServers: boolean; hasSkills: boolean; auto?: boolean; json?: boolean },
+  ): Promise<{ mcp: string[]; skill: string[] }> {
+    const resolvedMcp = [...mcp]
+    const resolvedSkill = [...skill]
+
+    // Non-interactive contexts can't prompt, so honor whatever the resolved
+    // agents cover and skip the empty side rather than blocking on a select.
+    // This covers --auto as well as JSON / non-TTY runs (e.g. the package
+    // install path, which doesn't coerce `auto` from `json`). We never invent
+    // agents the project didn't detect or pin.
+    if (auto || json || !process.stdout.isTTY) return { mcp: resolvedMcp, skill: resolvedSkill }
+
+    if (resolvedMcp.length === 0 && hasServers) {
+      log.info("None of the specified agents support MCP — select MCP agents:")
+      const picked = await promptWithCancel(() =>
+        multiselect({
+          message: "Select agents to install MCP servers to",
+          options: agentOptionsWithHints(mcpAgents),
+          initialValues: defaultMcpAgents,
+          required: false,
+        }),
+      )
+      if (picked) {
+        warnGlobalOnlyAgents(picked, mcpAgents)
+        resolvedMcp.push(...picked)
+      }
+    }
+
+    if (resolvedSkill.length === 0 && hasSkills) {
+      log.info("None of the specified agents support skills — select skill agents:")
+      const picked = await promptWithCancel(() =>
+        multiselect({
+          message: "Select agents to install skills to",
+          options: agentOptionsWithHints(skillAgents),
+          initialValues: defaultSkillAgents,
+          required: false,
+        }),
+      )
+      if (picked) resolvedSkill.push(...picked)
+    }
+
+    return { mcp: resolvedMcp, skill: resolvedSkill }
+  }
+
   protected async resolveAgents(
     agents: string[],
-    { hasServers, hasSkills }: { hasServers: boolean; hasSkills: boolean },
+    {
+      hasServers,
+      hasSkills,
+      auto,
+      json,
+    }: { hasServers: boolean; hasSkills: boolean; auto?: boolean; json?: boolean },
   ): Promise<{ mcp: string[]; skill: string[] }> {
     const mcpValues = new Set(mcpAgents.map((a) => a.value))
     const skillValues = new Set(skillAgents.map((a) => a.value))
@@ -54,36 +155,7 @@ export abstract class InstallBase {
       }
     }
 
-    if (mcp.length === 0 && hasServers) {
-      log.info("None of the specified agents support MCP — select MCP agents:")
-      const picked = await promptWithCancel(() =>
-        multiselect({
-          message: "Select agents to install MCP servers to",
-          options: agentOptionsWithHints(mcpAgents),
-          initialValues: defaultMcpAgents,
-          required: false,
-        }),
-      )
-      if (picked) {
-        warnGlobalOnlyAgents(picked, mcpAgents)
-        mcp.push(...picked)
-      }
-    }
-
-    if (skill.length === 0 && hasSkills) {
-      log.info("None of the specified agents support skills — select skill agents:")
-      const picked = await promptWithCancel(() =>
-        multiselect({
-          message: "Select agents to install skills to",
-          options: agentOptionsWithHints(skillAgents),
-          initialValues: defaultSkillAgents,
-          required: false,
-        }),
-      )
-      if (picked) skill.push(...picked)
-    }
-
-    return { mcp, skill }
+    return this.fillMissingAgentSides({ mcp, skill }, { hasServers, hasSkills, auto, json })
   }
 
   async promptForSelection(

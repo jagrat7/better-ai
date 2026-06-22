@@ -20,6 +20,17 @@ export type AgentOption = {
   globalOnly?: boolean
 }
 
+// One canonical agent exposed to users (in config + `--agent`), translated
+// internally to the underlying MCP and/or skill CLI targets. An agent may omit
+// a side (e.g. vscode has no skill target).
+export type AgentTarget = {
+  id: string
+  label: string
+  mcp?: string
+  skills?: string
+  globalOnly?: boolean
+}
+
 export type SkillEntry = {
   source: string
   label: string
