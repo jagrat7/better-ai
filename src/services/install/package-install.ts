@@ -1,6 +1,7 @@
 import { log, outro, spinner } from "@clack/prompts"
 import pc from "picocolors"
 import { matcherService } from "../matcher"
+import { skillSearchMessage } from "../matcher/utils"
 import { readSkillsLock } from "../shared/utils"
 import {
   executeInstallations,
@@ -83,13 +84,13 @@ export class PackageInstallService extends InstallBase {
           // Stage 2: GitHub fetch of registry-pinned repos.
           case "github":
             if (progress.total > 0) {
-              searchSpinner.message(`Fetching ${progress.total} registry-pinned repo(s) from GitHub...`)
+              searchSpinner.message(skillSearchMessage.fetchingPinned(progress.total))
             }
             break
           // Stage 3: fall back to the hand-maintained list.
           case "fallback":
             if (progress.total > 0) {
-              searchSpinner.message(`Falling back to the hand-maintained list (${progress.total} repo(s))...`)
+              searchSpinner.message(skillSearchMessage.fallback(progress.total))
             }
             break
         }

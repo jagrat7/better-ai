@@ -18,6 +18,23 @@ export const githubHeaders = {
 }
 
 /**
+ * Spinner copy for the whole skill search, kept in one place so the matcher and
+ * install flows stay free of inline strings. Stage 1 streams atomic discovery
+ * sub-actions (npm lookup → repo scan → owner search → global search); stages 2
+ * and 3 report counts for the registry-pinned fetch and hand-maintained fallback.
+ */
+export const skillSearchMessage = {
+  npmLookup: (dep: string) => `Looking up ${dep} on npm`,
+  repoScan: (repo: string) => `Scanning ${repo} on GitHub for skills`,
+  ownerSearch: (owner: string, dep: string) => `Searching ${owner}'s GitHub repos for ${dep} skills`,
+  globalSearch: (term: string) => `Searching GitHub for ${term} skills`,
+  // Stage 2
+  fetchingPinned: (total: number) => `Fetching ${total} registry-pinned repo(s) from GitHub...`,
+  // Stage 3
+  fallback: (total: number) => `Falling back to the hand-maintained list (${total} repo(s))...`,
+}
+
+/**
  * Check if a when condition matches the project's dependencies.
  * @param when The when condition to check
  * @param deps The project's dependencies

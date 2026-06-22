@@ -43,27 +43,35 @@ export const matcherService = {
     const coveredDeps = new Set<string>()
     if (discover) {
       onProgress?.({ phase: "discover", total: deps.size })
+      // Emit an atomic step, then pause briefly so the message is readable —
+      // tiers resolve fast (often cached) and would otherwise flash past. The
+      // delay only runs when a listener is attached, keeping tests instant.
+      const report = async (message: string) => {
+        if (!onProgress) return
+        onProgress({ phase: "discover-step", message })
+        await new Promise((resolve) => setTimeout(resolve, 2000))
+      }
       const hits = await Promise.all(
         // Three tiers per dep, first repo with a SKILL.md wins (example: dep `hono`).
         // Each tier streams an atomic step so the spinner names the exact action
         // in flight (npm lookup → GitHub repo scan → GitHub search).
         [...deps].map(async (dep) => {
           // 1a. npm `repository` field → the dep's own repo (hono → honojs/hono).
-          onProgress?.({ phase: "discover-step", message: `Looking up ${dep} on npm` })
+          await report(matcherUtils.skillSearchMessage.npmLookup(dep))
           const npmRepo = await matcherUtils.resolveNpmRepo(dep)
           if (npmRepo) {
-            onProgress?.({ phase: "discover-step", message: `Scanning ${npmRepo} on GitHub for skills` })
+            await report(matcherUtils.skillSearchMessage.repoScan(npmRepo))
             const skills = await matcherUtils.discoverRepoSkills(npmRepo)
             if (skills.length > 0) return { source: npmRepo, dep, skills }
             // 1b. npm owner + `*skill*` repo → a sibling repo under that owner (user:honojs skill).
-            const owner = npmRepo.split("/")[0]
-            onProgress?.({ phase: "discover-step", message: `Searching ${owner}'s GitHub repos for ${dep} skills` })
+            const owner = npmRepo.split("/")[0] ?? npmRepo
+            await report(matcherUtils.skillSearchMessage.ownerSearch(owner, dep))
             const ownerHit = await matcherUtils.resolveFromSearch(`user:${owner} skill in:name`, dep)
             if (ownerHit) return ownerHit
           }
           // 1c. global `<pkg> skill` search → an unrelated owner (hono → yusukebe/hono-skill).
           const term = dep.split("/").at(-1) ?? dep
-          onProgress?.({ phase: "discover-step", message: `Searching GitHub for ${term} skills` })
+          await report(matcherUtils.skillSearchMessage.globalSearch(term))
           return matcherUtils.resolveFromSearch(`${term} skill`, dep)
         }),
       )
