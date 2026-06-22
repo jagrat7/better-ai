@@ -9,11 +9,13 @@ type SkillDetectionSourceEntry = {
 const skillDetectionSourceIcons = {
   github: "◆",
   fallback: "◇",
+  local: "▣",
 } satisfies Record<SkillDetectionSource, string>
 
 const skillDetectionSourceLabels = {
   github: "detected by GitHub",
   fallback: "detected by fallback list",
+  local: "detected in node_modules",
 } satisfies Record<SkillDetectionSource, string>
 
 export function getSkillDetectionSource(skill: SkillDetectionSourceEntry): SkillDetectionSource {
@@ -39,5 +41,9 @@ export function getSkillDetectionSourceHint(skill: SkillDetectionSourceEntry): s
 }
 
 export function getSkillDetectionSourceKey(): string {
-  return `${skillDetectionSourceIcons.github} ${skillDetectionSourceLabels.github}, ${skillDetectionSourceIcons.fallback} ${skillDetectionSourceLabels.fallback}`
+  // Derived from the icon/label records so new sources (e.g. "local") show up
+  // in the legend automatically.
+  return (Object.keys(skillDetectionSourceIcons) as Array<SkillDetectionSource>)
+    .map((source) => `${skillDetectionSourceIcons[source]} ${skillDetectionSourceLabels[source]}`)
+    .join(", ")
 }

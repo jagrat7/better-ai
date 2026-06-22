@@ -20,56 +20,169 @@
         --radius: 12px;
         --maxw: 860px;
       }
-      * { box-sizing: border-box; }
+      * {
+        box-sizing: border-box;
+      }
       body {
         margin: 0;
         background: var(--bg);
         color: var(--text);
-        font: 15px/1.65 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        font:
+          15px/1.65 ui-sans-serif,
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
       }
-      main { max-width: var(--maxw); margin: 0 auto; padding: 48px 24px 96px; }
-      nav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 32px; font-size: 13px; }
+      main {
+        max-width: var(--maxw);
+        margin: 0 auto;
+        padding: 48px 24px 96px;
+      }
+      nav {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 32px;
+        font-size: 13px;
+      }
       nav a {
-        color: var(--muted); text-decoration: none;
-        border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px;
+        color: var(--muted);
+        text-decoration: none;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 4px 12px;
       }
-      nav a.active { color: var(--text); border-color: var(--accent); background: var(--accent-soft); }
-      h1 { font-size: 30px; margin: 0 0 8px; letter-spacing: -0.02em; }
-      h2 { font-size: 19px; margin: 40px 0 14px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
-      h3 { font-size: 15px; margin: 22px 0 8px; color: var(--accent); }
-      .lede { color: var(--muted); font-size: 16px; margin: 0 0 8px; }
+      nav a.active {
+        color: var(--text);
+        border-color: var(--accent);
+        background: var(--accent-soft);
+      }
+      h1 {
+        font-size: 30px;
+        margin: 0 0 8px;
+        letter-spacing: -0.02em;
+      }
+      h2 {
+        font-size: 19px;
+        margin: 40px 0 14px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--border);
+      }
+      h3 {
+        font-size: 15px;
+        margin: 22px 0 8px;
+        color: var(--accent);
+      }
+      .lede {
+        color: var(--muted);
+        font-size: 16px;
+        margin: 0 0 8px;
+      }
       code {
-        background: var(--code-bg); border: 1px solid var(--border);
-        border-radius: 6px; padding: 1px 6px; font-size: 13px;
+        background: var(--code-bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 1px 6px;
+        font-size: 13px;
         font-family: ui-monospace, "SF Mono", Menlo, monospace;
       }
       pre {
-        background: var(--code-bg); border: 1px solid var(--border);
-        border-radius: var(--radius); padding: 16px; overflow-x: auto;
-        font-size: 13px; line-height: 1.6;
+        background: var(--code-bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px;
+        overflow-x: auto;
+        font-size: 13px;
+        line-height: 1.6;
         font-family: ui-monospace, "SF Mono", Menlo, monospace;
       }
-      pre code { background: none; border: none; padding: 0; }
-      table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 14px; }
-      th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
-      th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
-      .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
-      .card.files code { display: inline-block; margin: 2px 0; }
-      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-      @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
-      ol.steps { counter-reset: step; list-style: none; padding: 0; }
-      ol.steps > li { position: relative; padding: 12px 0 12px 44px; border-bottom: 1px solid var(--border); }
+      pre code {
+        background: none;
+        border: none;
+        padding: 0;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 8px 0;
+        font-size: 14px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 9px 10px;
+        border-bottom: 1px solid var(--border);
+        vertical-align: top;
+      }
+      th {
+        color: var(--muted);
+        font-weight: 600;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px 18px;
+      }
+      .card.files code {
+        display: inline-block;
+        margin: 2px 0;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      @media (max-width: 640px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      ol.steps {
+        counter-reset: step;
+        list-style: none;
+        padding: 0;
+      }
+      ol.steps > li {
+        position: relative;
+        padding: 12px 0 12px 44px;
+        border-bottom: 1px solid var(--border);
+      }
       ol.steps > li::before {
-        counter-increment: step; content: counter(step);
-        position: absolute; left: 0; top: 12px; width: 28px; height: 28px; border-radius: 8px;
-        background: var(--accent-soft); color: var(--accent);
-        display: grid; place-items: center; font-size: 13px; font-weight: 700;
+        counter-increment: step;
+        content: counter(step);
+        position: absolute;
+        left: 0;
+        top: 12px;
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        display: grid;
+        place-items: center;
+        font-size: 13px;
+        font-weight: 700;
       }
       .note {
-        background: var(--surface-2); border-left: 3px solid var(--accent);
-        border-radius: 0 8px 8px 0; padding: 10px 14px; margin: 14px 0; color: var(--muted);
+        background: var(--surface-2);
+        border-left: 3px solid var(--accent);
+        border-radius: 0 8px 8px 0;
+        padding: 10px 14px;
+        margin: 14px 0;
+        color: var(--muted);
       }
-      footer { margin-top: 56px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--border); padding-top: 16px; }
+      footer {
+        margin-top: 56px;
+        color: var(--muted);
+        font-size: 13px;
+        border-top: 1px solid var(--border);
+        padding-top: 16px;
+      }
     </style>
   </head>
   <body>
@@ -82,22 +195,40 @@
       </nav>
 
       <h1>Preset Plan</h1>
-      <p class="lede">Named bundles of MCP servers + skills. Run a preset on its own with the <code>preset</code> command, or layer it on top of another command with <code>--preset</code>.</p>
+      <p class="lede">
+        Named bundles of MCP servers + skills. Run a preset on its own with the
+        <code>preset</code> command, or layer it on top of another command with
+        <code>--preset</code>.
+      </p>
 
-      <div class="note">Part 4 of 4. Presets are stored in the config file defined in <a href="config-plan.html">plan 3</a>. Presets do <strong>not</strong> contain agents — agent resolution is owned by plan 3.</div>
+      <div class="note">
+        Part 4 of 4. Presets are stored in the config file defined in
+        <a href="config-plan.html">plan 3</a>. Presets do <strong>not</strong> contain agents —
+        agent resolution is owned by plan 3.
+      </div>
 
       <h2>Goal</h2>
-      <p>Let users define reusable extras (e.g. a <code>frontend</code> bundle) and either install them on their own or add them on top of another command's results.</p>
+      <p>
+        Let users define reusable extras (e.g. a <code>frontend</code> bundle) and either install
+        them on their own or add them on top of another command's results.
+      </p>
 
       <pre><code>bttrai preset frontend            # raw preset only, no detection
 bttrai detect --preset frontend   # detected matches + frontend extras</code></pre>
 
       <h2>Decisions</h2>
       <ul>
-        <li>The <code>preset name</code> command installs only that preset — nothing is detected.</li>
-        <li>The <code>--preset name</code> flag adds preset extras on top of the host command's results.</li>
+        <li>
+          The <code>preset name</code> command installs only that preset — nothing is detected.
+        </li>
+        <li>
+          The <code>--preset name</code> flag adds preset extras on top of the host command's
+          results.
+        </li>
         <li>Presets do not contain agents.</li>
-        <li>Presets are independent by default, so there is no <code>includeDetected</code> flag.</li>
+        <li>
+          Presets are independent by default, so there is no <code>includeDetected</code> flag.
+        </li>
       </ul>
 
       <h2>Preset Shape</h2>
@@ -132,13 +263,34 @@ bttrai detect --preset frontend   # detected matches + frontend extras</code></p
 
       <h2>CLI Behavior</h2>
       <table>
-        <tr><th>Command</th><th>Result</th></tr>
-        <tr><td><code>bttrai preset frontend</code></td><td>Frontend extras only, favorite agents, prompts normally.</td></tr>
-        <tr><td><code>bttrai preset frontend --auto</code></td><td>Frontend extras only, skips prompts.</td></tr>
-        <tr><td><code>bttrai preset frontend --agent cursor</code></td><td>Frontend extras only, cursor only.</td></tr>
-        <tr><td><code>bttrai detect --preset frontend</code></td><td>Detected matches + frontend extras, prompts normally.</td></tr>
-        <tr><td><code>bttrai detect --preset frontend --auto</code></td><td>Detected matches + frontend extras, skips prompts.</td></tr>
-        <tr><td><code>bttrai detect --preset frontend --agent cursor</code></td><td>Detected matches + frontend extras, cursor only.</td></tr>
+        <tr>
+          <th>Command</th>
+          <th>Result</th>
+        </tr>
+        <tr>
+          <td><code>bttrai preset frontend</code></td>
+          <td>Frontend extras only, favorite agents, prompts normally.</td>
+        </tr>
+        <tr>
+          <td><code>bttrai preset frontend --auto</code></td>
+          <td>Frontend extras only, skips prompts.</td>
+        </tr>
+        <tr>
+          <td><code>bttrai preset frontend --agent cursor</code></td>
+          <td>Frontend extras only, cursor only.</td>
+        </tr>
+        <tr>
+          <td><code>bttrai detect --preset frontend</code></td>
+          <td>Detected matches + frontend extras, prompts normally.</td>
+        </tr>
+        <tr>
+          <td><code>bttrai detect --preset frontend --auto</code></td>
+          <td>Detected matches + frontend extras, skips prompts.</td>
+        </tr>
+        <tr>
+          <td><code>bttrai detect --preset frontend --agent cursor</code></td>
+          <td>Detected matches + frontend extras, cursor only.</td>
+        </tr>
       </table>
 
       <h2>Implementation Steps</h2>

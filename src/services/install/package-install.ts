@@ -1,6 +1,8 @@
 import { log, outro, spinner } from "@clack/prompts"
 import pc from "picocolors"
 import { matcherService } from "../matcher"
+import { skillSearchMessage } from "../matcher/utils"
+import { readSkillsLock } from "../shared/utils"
 import {
   executeInstallations,
   extractPackageNames,
@@ -21,7 +23,15 @@ type SelectionResult = Pick<
 // `install <pkg>` CLI command. Honors the same scope/agent flags as the project
 // install (--mcp/--skills/--agent/--auto).
 export class PackageInstallService extends InstallBase {
-  async run({ project, rawArgs, mcp, skills, agent, auto, json }: PackageInstallInput): Promise<void> {
+  async run({
+    project,
+    rawArgs,
+    mcp,
+    skills,
+    agent,
+    auto,
+    json,
+  }: PackageInstallInput): Promise<void> {
     const { packageManager, preferredPackageManager, usedFallback } =
       await resolvePackageManager(project)
 
@@ -54,8 +64,46 @@ export class PackageInstallService extends InstallBase {
     // Match extras, excluding universal (wildcard) entries so a package-targeted
     // install stays focused on the named packages. Read skills-lock.json so
     // already-installed skills get flagged and de-selected, same as the detect flow.
-    const installedSkills = await matcherService.readSkillsLock(project)
-    const matches = await matcherService.run({ deps, installedSkills })
+    const installedSkills = await readSkillsLock(project)
+    // discover: resolve skills for named packages absent from the static registry
+    // (npm repo metadata → GitHub repo search). Safe here — only the few packages
+    // the user explicitly installed are probed. A spinner streams each atomic
+    // step (npm lookup → GitHub repo scan → GitHub search) so the wait is legible.
+    const searchSpinner = spinner()
+    searchSpinner.start(`Searching for skills across ${deps.size} package(s)...`)
+    const matches = await matcherService.run({
+      deps,
+      installedSkills,
+      discover: true,
+      project,
+      onProgress: (progress) => {
+        switch (progress.phase) {
+          // Stage 0: local node_modules scan (free, version-pinned).
+          case "local":
+            if (progress.total > 0) {
+              searchSpinner.message(skillSearchMessage.localScan(progress.total))
+            }
+            break
+          // Stage 1: live discovery — stream the exact npm/GitHub action.
+          case "discover-step":
+            searchSpinner.message(progress.message)
+            break
+          // Stage 2: GitHub fetch of registry-pinned repos.
+          case "github":
+            if (progress.total > 0) {
+              searchSpinner.message(skillSearchMessage.fetchingPinned(progress.total))
+            }
+            break
+          // Stage 3: fall back to the hand-maintained list.
+          case "fallback":
+            if (progress.total > 0) {
+              searchSpinner.message(skillSearchMessage.fallback(progress.total))
+            }
+            break
+        }
+      },
+    })
+    searchSpinner.stop("Skill search complete")
     const matchedServers = matches.servers.filter((server) => !server.when.deps.includes("*"))
     const matchedSkills = matches.skills.filter((skill) => !skill.when.deps.includes("*"))
 

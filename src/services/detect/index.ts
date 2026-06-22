@@ -7,7 +7,7 @@ import {
   getSkillDetectionSourceHint,
   getSkillDetectionSourceIcon,
 } from "../shared/skill-source"
-import { runDetectionWithProgress } from "../shared/utils"
+import { readSkillsLock, runDetectionWithProgress } from "../shared/utils"
 import type { ServiceI } from "../service.interface"
 import { theme } from "../../components/theme"
 import type { DetectCommandInput, DetectInput, DetectJson, DetectResult } from "./types"
@@ -21,11 +21,13 @@ export const detectService = {
     //    BEFORE the slower matcher (GitHub fetches) runs.
     onDeps?.(deps)
     // 3. Read skills-lock.json so we can flag already-installed skills.
-    const installedSkills = await matcherService.readSkillsLock(project)
-    // 4. Match deps against registry → fetch real skills from GitHub → fall back
-    //    to registry-defined skills for sources that returned nothing.
-    //    onProgress fires twice: { phase: "github" } then { phase: "fallback" }.
-    const matches = await matcherService.run({ deps, installedSkills, onProgress })
+    const installedSkills = await readSkillsLock(project)
+    // 4. Stage 0 local node_modules scan (passing `project` opts in) → match
+    //    deps against registry → fetch real skills from GitHub → fall back to
+    //    registry-defined skills for sources that returned nothing. onProgress
+    //    fires { phase: "local" }, { phase: "github" }, then { phase: "fallback" }.
+    //    discover stays off here — too many deps for GitHub's Search quota.
+    const matches = await matcherService.run({ deps, installedSkills, onProgress, project })
 
     return {
       project,
@@ -66,18 +68,19 @@ export const detectService = {
         const detectionSource = getSkillDetectionSource(skill)
         const sourceLabel = `${skill.resolvedSkills.length} ${getSkillDetectionSourceHint(skill)}`
         log.message(`  ${theme.bullet} ${skill.label} ${theme.hint(`— ${sourceLabel}`)}${status}`)
-        if (detectionSource === "github") {
-          log.message(`    ${pc.bold("GitHub")}`)
+        if (detectionSource === "fallback") {
+          log.message(`    ${pc.bold("Fallback")}`)
+          for (const skillName of skill.resolvedSkills) {
+            log.message(`      ${getSkillDetectionSourceIcon(skill)} ${skillName}`)
+          }
+        } else {
+          // github + local both carry real paths; only the header differs.
+          log.message(`    ${pc.bold(detectionSource === "local" ? "node_modules" : "GitHub")}`)
           for (const [index, skillName] of skill.resolvedSkills.entries()) {
             const skillPath = skill.resolvedSkillPaths[index] ?? skillName
             log.message(
               `      ${getSkillDetectionSourceIcon(skill)} ${skillName} ${theme.hint(`(${skillPath})`)}`,
             )
-          }
-        } else {
-          log.message(`    ${pc.bold("Fallback")}`)
-          for (const skillName of skill.resolvedSkills) {
-            log.message(`      ${getSkillDetectionSourceIcon(skill)} ${skillName}`)
           }
         }
       }

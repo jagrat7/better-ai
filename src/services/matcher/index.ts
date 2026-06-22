@@ -1,184 +1,228 @@
-import { readFile } from "node:fs/promises"
-import { join } from "node:path"
 import { mcpServers } from "../../registry/mcp-servers"
 import { skills } from "../../registry/skills"
-import { matches } from "./utils"
-import type {
-  MatcherInput,
-  MatcherJson,
-  MatcherResult,
-  ResolvedSkillEntry,
-  SkillsLockFile,
-} from "./types"
-
-// Repos named exactly "skills" (e.g. `better-auth/skills`) hold all their SKILL.md
-// files at the top level instead of under a `skills/` subdirectory. We detect this
-// to relax the path filter for those repos.
-const githubSkillsRepoName = "skills"
-const githubHeaders = {
-  Accept: "application/vnd.github+json",
-  "User-Agent": "better-ai",
-}
+import * as matcherUtils from "./utils"
+import type { MatcherInput, MatcherJson, MatcherResult, ResolvedSkillEntry } from "./types"
 
 export const matcherService = {
-  // Reads the project's skills-lock.json to know which skills are already installed.
-  async readSkillsLock(project: string): Promise<Set<string>> {
-    try {
-      const raw = await readFile(join(project, "skills-lock.json"), "utf-8")
-      const lock: SkillsLockFile = JSON.parse(raw)
-      return new Set(Object.keys(lock.skills ?? {}))
-    } catch {
-      return new Set()
-    }
-  },
-  // Discovers every folder containing a SKILL.md in a GitHub repo via one
-  // recursive git-tree API call (single request regardless of repo size).
-  // Returns directory paths (relative to repo root) — not slugs.
-  async getRepoSkillPaths(repo: string): Promise<string[]> {
-    // Repos literally named "skills" get a relaxed filter (any SKILL.md counts).
-    const isSkillsRepo = repo.split("/").at(-1) === githubSkillsRepoName
-
-    try {
-      const response = await fetch(
-        `https://api.github.com/repos/${repo}/git/trees/HEAD?recursive=1`,
-        { headers: githubHeaders },
-      )
-      // Network errors, 404s, rate limits, etc. → caller falls back to registry.
-      if (!response.ok) return []
-
-      const { tree = [] } = (await response.json()) as {
-        tree?: Array<{ path?: string; type?: string }>
-      }
-
-      return [
-        ...new Set(
-          tree.flatMap((item) => {
-            // Only consider files literally named SKILL.md.
-            if (item.type !== "blob" || !item.path?.endsWith("/SKILL.md")) return []
-            // Strip the trailing "/SKILL.md" to get the skill's folder path.
-            const skillPath = item.path.slice(0, item.path.lastIndexOf("/"))
-            // Require a `skills/` segment somewhere in the path — prevents picking
-            // up SKILL.md files from unrelated nested directories. The skills-named
-            // repo escape hatch above bypasses this.
-            const inSkillsDir = skillPath.split("/").includes(githubSkillsRepoName)
-            return inSkillsDir || isSkillsRepo ? [skillPath] : []
-          }),
-        ),
-      ].sort()
-    } catch {
-      return []
-    }
-  },
-  // TODO: This three still seem like slop, FIX!
-  // For each skill folder found by getRepoSkillPaths, fetch its SKILL.md and
-  // parse the YAML frontmatter `name:` field. That slug is what `skills@latest`
-  // expects as the --skill argument (it may differ from the folder name, e.g.
-  // folder `use-ai-sdk` declares `name: ai-sdk`).
-  async discoverRepoSkills(repo: string): Promise<Array<{ name: string; path: string }>> {
-    const skillPaths = await matcherService.getRepoSkillPaths(repo)
-
-    return Promise.all(
-      skillPaths.map(async (skillPath) => {
-        // Fallback used when fetch/parse fails — last path segment is usually
-        // close enough to the slug.
-        const folderName = skillPath.slice(skillPath.lastIndexOf("/") + 1)
-        try {
-          // raw.githubusercontent.com is a CDN with no auth rate limits, unlike
-          // api.github.com. Safe to call once per discovered skill.
-          const response = await fetch(
-            `https://raw.githubusercontent.com/${repo}/HEAD/${skillPath}/SKILL.md`,
-          )
-          if (!response.ok) return { name: folderName, path: skillPath }
-          const text = await response.text()
-          // Extract YAML frontmatter block between leading `---` fences.
-          const frontmatter = text.match(/^---\s*\n([\s\S]*?)\n---/)?.[1] ?? ""
-          // Capture `name: value` supporting double-quoted, single-quoted, and bare values.
-          const nameMatch = frontmatter.match(/^name:\s*(?:"([^"]+)"|'([^']+)'|(.+?))\s*$/m)
-          const slug = (nameMatch?.[1] ?? nameMatch?.[2] ?? nameMatch?.[3])?.trim()
-          return { name: slug ?? folderName, path: skillPath }
-        } catch {
-          return { name: folderName, path: skillPath }
-        }
-      }),
-    )
-  },
-  // Filter the static MCP server registry down to entries whose `when` condition
-  // is satisfied by the project's deps.
+  /**
+   * Filter the static MCP server registry down to entries whose `when` condition
+   * is satisfied by the project's deps.
+   */
   matchMcpServers(deps: Set<string>): MatcherResult["servers"] {
-    return mcpServers.filter((entry) => matches(entry.when, deps))
+    return mcpServers.filter((entry) => matcherUtils.matches(entry.when, deps))
   },
-  // Two-phase skill resolution:
-  //   1. GitHub phase: for every matched registry entry, fetch its actual skills
-  //      from GitHub in parallel.
-  //   2. Fallback phase: any source that returned no GitHub skills falls back
-  //      to the registry-declared skill list.
-  // onProgress is invoked once per phase so the UI can drive spinners.
+  /**
+   * Skill resolution, freshest-source-first. Stages 0–2 fetch the real SKILL.md
+   * set; they differ in source and cost:
+   *   0. Local node_modules scan — skills shipped inside the installed package's
+   *      tarball (TanStack Intent convention). No network, version-pinned. Runs
+   *      whenever the project root is known (detect AND package-install).
+   *   1. Discover the repo live (npm metadata or GitHub search), then fetch its
+   *      skills. Package-install only; freshest network source, so it's next.
+   *   2. Repo identity comes from the static registry; fetch its current skills
+   *      from GitHub. Only deps stages 0/1 didn't already cover.
+   *   3. Fallback (no GitHub): repos the stage-2 fetch returned nothing for use
+   *      the registry's hand-maintained skill list instead.
+   *
+   * @param onProgress Invoked once per phase so the UI can drive spinners.
+   */
   async matchSkills(
     deps: Set<string>,
     installedSkills?: Set<string>,
     onProgress?: MatcherInput["onProgress"],
+    discover?: boolean,
+    project?: string,
   ): Promise<ResolvedSkillEntry[]> {
-    // Filter registry entries whose `when` predicate matches the project's deps.
-    const matchedEntries = skills.filter((entry) => matches(entry.when, deps))
+    const matchedEntries = skills.filter((entry) => matcherUtils.matches(entry.when, deps))
 
-    // Signal the start of GitHub fetching with total work to do.
-    onProgress?.({ phase: "github", total: matchedEntries.length })
+    // `seenSources` dedups repos (two deps → same repo collapse to one entry);
+    // `coveredDeps` records resolved deps so later stages skip them.
+    const seenSources = new Set<string>()
+    const coveredDeps = new Set<string>()
 
-    // Resolve every matched source in parallel — each does one tree fetch +
-    // N raw fetches (one per discovered SKILL.md) inside discoverRepoSkills.
-    const githubResults = await Promise.all(
-      matchedEntries.map(async (entry) => {
-        // Merge base skills with any conditional skills whose `when` also matches.
+    // ── Stage 0: local node_modules scan (TanStack Intent-compatible) ──────
+    // Skills shipped inside an installed package's tarball land in
+    // node_modules/<dep>/skills/**/SKILL.md. Reading them is a local fs walk —
+    // no network, no rate limit, pinned to the installed version — so it runs
+    // for every flow that knows the project root, ahead of the GitHub stages.
+    const localEntries: ResolvedSkillEntry[] = []
+    if (project) {
+      onProgress?.({ phase: "local", total: deps.size })
+      const localHits = await Promise.all(
+        [...deps].map(async (dep) => {
+          const found = await matcherUtils.discoverLocalSkills(project, dep)
+          if (found.length === 0) return null
+          // The skills install via `skills@latest add <source>`, which needs a
+          // GitHub "owner/repo" — a bare npm name breaks the command. Read it
+          // network-free from the installed package.json (the same manifest that
+          // shipped the skills); fall back to the registry's pinned source, then
+          // the dep name as a last resort so detect still lists it.
+          const localRepo = await matcherUtils.resolveLocalRepo(project, dep)
+          const registrySource = matchedEntries.find((entry) => entry.when.deps.includes(dep))?.source
+          return { dep, skills: found, source: localRepo ?? registrySource ?? dep }
+        }),
+      )
+      for (const hit of localHits) {
+        if (!hit) continue
+        seenSources.add(hit.source)
+        coveredDeps.add(hit.dep)
+        const names = hit.skills.map((skill) => skill.name)
+        localEntries.push({
+          source: hit.source,
+          label: hit.dep,
+          skills: names,
+          when: { deps: [hit.dep] },
+          resolvedSkills: names,
+          resolvedSkillPaths: hit.skills.map((skill) => skill.path),
+          detectionSource: "local",
+          installed: names.some((name) => installedSkills?.has(name) ?? false),
+        })
+      }
+    }
+
+    // ── Stage 1: discover the repo live, then fetch its skills ─────────────
+    // Package-install only. For each dep stage 0 didn't already resolve, in
+    // parallel, find the repo (npm registry.npmjs.org/<pkg> → repository.url,
+    // else GitHub search) and tree-scan it for SKILL.md files — same GitHub
+    // fetch stage 2 does, but the repo is discovered rather than registry-
+    // pinned. Fresh sources win over the static registry.
+    const dynamicEntries: ResolvedSkillEntry[] = []
+    if (discover) {
+      onProgress?.({ phase: "discover", total: deps.size })
+      // Stream an atomic step naming the action in flight (npm lookup → repo
+      // scan → search) so the spinner reflects real progress.
+      const report = (message: string) => {
+        onProgress?.({ phase: "discover-step", message })
+      }
+      const hits = await Promise.all(
+        // Three tiers per dep, first repo with a SKILL.md wins (example: dep `hono`).
+        // Each tier streams an atomic step so the spinner names the exact action
+        // in flight (npm lookup → GitHub repo scan → GitHub search). Deps stage 0
+        // already resolved locally are skipped.
+        [...deps].filter((dep) => !coveredDeps.has(dep)).map(async (dep) => {
+          // 1a. npm `repository` field → the dep's own repo (hono → honojs/hono).
+          report(matcherUtils.skillSearchMessage.npmLookup(dep))
+          const npmRepo = await matcherUtils.resolveNpmRepo(dep)
+          if (npmRepo) {
+            report(matcherUtils.skillSearchMessage.repoScan(npmRepo))
+            const skills = await matcherUtils.discoverRepoSkills(npmRepo)
+            if (skills.length > 0) return { source: npmRepo, dep, skills }
+            // 1b. npm owner + `*skill*` repo → a sibling repo under that owner (user:honojs skill).
+            const owner = npmRepo.split("/")[0] ?? npmRepo
+            report(matcherUtils.skillSearchMessage.ownerSearch(owner, dep))
+            const ownerHit = await matcherUtils.resolveFromSearch(`user:${owner} skill in:name`, dep)
+            if (ownerHit) return ownerHit
+          }
+          // 1c. global `<pkg> skill` search → an unrelated owner (hono → yusukebe/hono-skill).
+          const term = dep.split("/").at(-1) ?? dep
+          report(matcherUtils.skillSearchMessage.globalSearch(term))
+          return matcherUtils.resolveFromSearch(`${term} skill`, dep)
+        }),
+      )
+      for (const hit of hits) {
+        // Skip deps that didn't resolve, and repos another dep already produced.
+        if (!hit || seenSources.has(hit.source)) continue
+        seenSources.add(hit.source)
+        coveredDeps.add(hit.dep)
+        const names = hit.skills.map((skill) => skill.name)
+        dynamicEntries.push({
+          source: hit.source,
+          label: hit.dep,
+          skills: names,
+          when: { deps: [hit.dep] },
+          resolvedSkills: names,
+          resolvedSkillPaths: hit.skills.map((skill) => skill.path),
+          detectionSource: "github",
+          installed: names.some((name) => installedSkills?.has(name) ?? false),
+        })
+      }
+    }
+
+    // ── Stage 2: fetch the registry-pinned repos from GitHub ───────────────
+    // Same GitHub tree-scan as stage 1; the only difference is the repo identity
+    // comes from the registry instead of live discovery. Each entry pins a
+    // `source` repo + a hand-maintained `skills` list. First drop entries
+    // dynamic already covered: same source, or every triggering dep already
+    // resolved live. We still tree-scan the pinned repo for its CURRENT skills
+    // (fresher than the hand-maintained list); `configuredSkills` is computed now
+    // as the stage-3 fallback.
+    const gapEntries = matchedEntries.filter(
+      (entry) =>
+        !seenSources.has(entry.source) &&
+        entry.when.deps.filter((dep) => deps.has(dep)).some((dep) => !coveredDeps.has(dep)),
+    )
+
+    onProgress?.({ phase: "github", total: gapEntries.length })
+    const fetched = await Promise.all(
+      gapEntries.map(async (entry) => {
         const extra = (entry.conditionalSkills ?? [])
-          .filter((cs) => matches(cs.when, deps))
+          .filter((cs) => matcherUtils.matches(cs.when, deps))
           .flatMap((cs) => cs.skills)
         const configuredSkills = [...entry.skills, ...extra]
-        // Mark this source as installed if ANY of its configured skills are in the lockfile.
-        const installed = installedSkills
-          ? configuredSkills.some((s) => installedSkills.has(s))
-          : false
-        const fetchedSkills = await matcherService.discoverRepoSkills(entry.source)
-
-        return {
-          entry,
-          configuredSkills,
-          fetchedSkills,
-          installed,
-        }
+        const githubSkills = await matcherUtils.discoverRepoSkills(entry.source)
+        return { entry, configuredSkills, githubSkills }
       }),
     )
 
-    // Count how many sources need fallback (GitHub returned nothing for them).
-    const fallbackResults = githubResults.filter((result) => result.fetchedSkills.length === 0)
-    onProgress?.({ phase: "fallback", total: fallbackResults.length })
+    // ── Stage 3: fallback — no GitHub, use the hand-maintained list ────────
+    // The stage-2 fetch returned nothing for these repos (404 / rate-limited /
+    // no SKILL.md), so use the registry-declared `skills` instead. Count them
+    // first so the spinner can show how many entries are on the fallback path.
+    const fallbackCount = fetched.filter(({ githubSkills }) => githubSkills.length === 0).length
+    onProgress?.({ phase: "fallback", total: fallbackCount })
 
-    // Build the final per-source result: prefer GitHub-discovered skills when
-    // available, otherwise use the registry-declared list.
-    return githubResults.map(({ entry, configuredSkills, fetchedSkills, installed }) => {
-      const detectionSource = fetchedSkills.length > 0 ? "github" : "fallback"
-      const resolvedSkills =
-        detectionSource === "github" ? fetchedSkills.map((skill) => skill.name) : configuredSkills
-      const resolvedSkillPaths =
-        detectionSource === "github" ? fetchedSkills.map((skill) => skill.path) : configuredSkills
+    const registryEntries: ResolvedSkillEntry[] = fetched.map(
+      ({ entry, configuredSkills, githubSkills }) => {
+        // Live scan wins; empty scan → fall back to the pinned `skills` list.
+        const fromGithub = githubSkills.length > 0
+        return {
+          source: entry.source,
+          label: entry.label,
+          skills: entry.skills,
+          when: entry.when,
+          resolvedSkills: fromGithub ? githubSkills.map((skill) => skill.name) : configuredSkills,
+          resolvedSkillPaths: fromGithub ? githubSkills.map((skill) => skill.path) : configuredSkills,
+          detectionSource: fromGithub ? "github" : "fallback",
+          installed: configuredSkills.some((skill) => installedSkills?.has(skill) ?? false),
+        }
+      },
+    )
 
-      return {
-        source: entry.source,
-        label: entry.label,
-        skills: entry.skills,
-        when: entry.when,
-        resolvedSkills,
-        resolvedSkillPaths,
-        detectionSource,
-        installed,
-      }
-    })
+    // Local (free, version-pinned) first, fresh dynamic next, possibly-stale
+    // registry last. A registry entry can span several deps (e.g. vercel/ai
+    // covers both `ai` and `openai`); if stage 0/1 resolved one of those deps
+    // under a different source key, the stage-2 tree-scan still re-fetches the
+    // whole repo, so the same skill name surfaces twice. Dedup by skill name in
+    // source-freshness order — the first (freshest) occurrence wins, and any
+    // entry left with no unique skills is dropped.
+    const seenSkills = new Set<string>()
+    return [...localEntries, ...dynamicEntries, ...registryEntries]
+      .map((entry) => {
+        const keptPaths: string[] = []
+        const resolvedSkills = entry.resolvedSkills.filter((name, i) => {
+          if (seenSkills.has(name)) return false
+          seenSkills.add(name)
+          keptPaths.push(entry.resolvedSkillPaths[i] ?? name)
+          return true
+        })
+        return { ...entry, resolvedSkills, resolvedSkillPaths: keptPaths }
+      })
+      .filter((entry) => entry.resolvedSkills.length > 0)
   },
-  // Public entry point: run MCP + skill matching together. MCP matching is synchronous
-  // (registry-only) while skill matching is async (involves GitHub fetches).
-  async run({ deps, installedSkills, onProgress }: MatcherInput): Promise<MatcherResult> {
+  /**
+   * Public entry point: run MCP + skill matching together. MCP matching is synchronous
+   * (registry-only) while skill matching is async (involves GitHub fetches).
+   */
+  async run({
+    deps,
+    installedSkills,
+    onProgress,
+    discover,
+    project,
+  }: MatcherInput): Promise<MatcherResult> {
     return {
       servers: matcherService.matchMcpServers(deps),
-      skills: await matcherService.matchSkills(deps, installedSkills, onProgress),
+      skills: await matcherService.matchSkills(deps, installedSkills, onProgress, discover, project),
     }
   },
   json(result: MatcherResult): MatcherJson {

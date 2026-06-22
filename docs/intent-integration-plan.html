@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Deeper TanStack Intent Integration Plan</title>
+    <style>
+      :root {
+        --bg: #0f1115;
+        --surface: #171a21;
+        --surface-2: #1f242d;
+        --border: #2a313c;
+        --text: #e6e9ef;
+        --muted: #9aa4b2;
+        --accent: #7aa2f7;
+        --accent-soft: #243049;
+        --ok: #9ece6a;
+        --warn: #e0af68;
+        --code-bg: #11141a;
+        --radius: 12px;
+        --maxw: 860px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          15px/1.65 ui-sans-serif,
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+      }
+      main {
+        max-width: var(--maxw);
+        margin: 0 auto;
+        padding: 48px 24px 96px;
+      }
+      nav {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 32px;
+        font-size: 13px;
+      }
+      nav a {
+        color: var(--muted);
+        text-decoration: none;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 4px 12px;
+      }
+      nav a.active {
+        color: var(--text);
+        border-color: var(--accent);
+        background: var(--accent-soft);
+      }
+      h1 {
+        font-size: 30px;
+        margin: 0 0 8px;
+        letter-spacing: -0.02em;
+      }
+      h2 {
+        font-size: 19px;
+        margin: 40px 0 14px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--border);
+      }
+      h3 {
+        font-size: 15px;
+        margin: 22px 0 8px;
+        color: var(--accent);
+      }
+      .lede {
+        color: var(--muted);
+        font-size: 16px;
+        margin: 0 0 8px;
+      }
+      code {
+        background: var(--code-bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 1px 6px;
+        font-size: 13px;
+        font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      }
+      pre {
+        background: var(--code-bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px;
+        overflow-x: auto;
+        font-size: 13px;
+        line-height: 1.6;
+        font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      }
+      pre code {
+        background: none;
+        border: none;
+        padding: 0;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 8px 0;
+        font-size: 14px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 9px 10px;
+        border-bottom: 1px solid var(--border);
+        vertical-align: top;
+      }
+      th {
+        color: var(--muted);
+        font-weight: 600;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px 18px;
+      }
+      .card.files code {
+        display: inline-block;
+        margin: 2px 0;
+      }
+      .flow {
+        display: grid;
+        gap: 10px;
+      }
+      .flow .step {
+        display: grid;
+        grid-template-columns: 30px 1fr;
+        gap: 12px;
+        align-items: start;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px 14px;
+      }
+      .flow .n {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        display: grid;
+        place-items: center;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .flow .step b {
+        color: var(--text);
+      }
+      .flow .step span {
+        color: var(--muted);
+      }
+      ol.steps {
+        counter-reset: step;
+        list-style: none;
+        padding: 0;
+      }
+      ol.steps > li {
+        position: relative;
+        padding: 12px 0 12px 44px;
+        border-bottom: 1px solid var(--border);
+      }
+      ol.steps > li::before {
+        counter-increment: step;
+        content: counter(step);
+        position: absolute;
+        left: 0;
+        top: 12px;
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        display: grid;
+        place-items: center;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .note {
+        background: var(--surface-2);
+        border-left: 3px solid var(--accent);
+        border-radius: 0 8px 8px 0;
+        padding: 10px 14px;
+        margin: 14px 0;
+        color: var(--muted);
+      }
+      .note.warn {
+        border-left-color: var(--warn);
+      }
+      .tag {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        border-radius: 999px;
+        padding: 2px 9px;
+        margin-left: 8px;
+        vertical-align: middle;
+      }
+      .tag.now {
+        color: var(--ok);
+        background: #1d2a1b;
+        border: 1px solid #2f4a2a;
+      }
+      .tag.later {
+        color: var(--warn);
+        background: #2a2418;
+        border: 1px solid #4a3f2a;
+      }
+      footer {
+        margin-top: 56px;
+        color: var(--muted);
+        font-size: 13px;
+        border-top: 1px solid var(--border);
+        padding-top: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <nav>
+        <a href="detect-command-plan.html">1 · Detect Command</a>
+        <a href="install-package-plan.html">2 · Install Package</a>
+        <a href="config-plan.html">3 · Config</a>
+        <a href="preset-plan.html">4 · Preset</a>
+        <a href="dynamic-discovery-plan.html">5 · Dynamic Discovery</a>
+        <a href="ecosystems-detect-plan.html">6 · Ecosyste.ms Detect</a>
+        <a class="active" href="intent-integration-plan.html">7 · Intent Integration</a>
+      </nav>
+
+      <h1>Deeper TanStack Intent Integration</h1>
+      <p class="lede">
+        Consume the open Agent Skills convention TanStack Intent popularised — skills shipped
+        <strong>inside the npm tarball</strong> — starting with a local <code>node_modules</code> scan
+        (<strong>Stage 0</strong>), then a roadmap toward honouring the <code>intent</code> manifest
+        field, <code>requires</code> ordering, and the trust allowlist.
+      </p>
+
+      <h2>Problem</h2>
+      <p>
+        Every existing discovery stage resolves skills off <strong>GitHub</strong> — the Search API
+        (10/min unauth) caps how many deps we can probe, and a tree-scan reads the repo's
+        <code>HEAD</code>, which can drift from the version actually installed. Meanwhile, packages
+        that adopt TanStack Intent already ship their <code>SKILL.md</code> files
+        <em>in the tarball</em>, sitting in <code>node_modules</code> right now — free, offline, and
+        version-pinned. We were ignoring the cheapest, most authoritative source.
+      </p>
+
+      <h2>How Intent ships skills</h2>
+      <p>
+        Verified against TanStack's own scanner (<code>packages/intent/src/discovery/scanner.ts</code>):
+      </p>
+      <ul>
+        <li>
+          Skills live at <code>&lt;pkg&gt;/skills/&lt;name&gt;/SKILL.md</code>, published in the npm
+          tarball, so they land in <code>node_modules/&lt;dep&gt;/skills/</code> on install. A
+          <code>SKILL.md</code> directly in <code>skills/</code> root is ignored — a skill needs its
+          own folder.
+        </li>
+        <li>
+          A package signals support via an <code>intent</code> manifest field
+          (<code>{ version: 1, repo, docs, requires?[] }</code>), or it is
+          <strong>derived</strong> from a <code>skills/</code> dir + a <code>repository</code> field.
+        </li>
+        <li>
+          The skill name is the folder path relative to <code>skills/</code>; frontmatter carries
+          <code>description</code>, <code>type</code>, <code>framework</code>. Same open SKILL.md
+          spec <code>bttrai</code> already parses.
+        </li>
+        <li>
+          <code>intent.requires</code> → cross-package skill ordering (topological).
+          <code>intent.skills</code> in the <em>consumer</em> manifest is a trust allowlist
+          (<code>*</code> = allow-all, <code>[]</code> = deny-all, absent = show-all).
+        </li>
+      </ul>
+
+      <h2>Stage 0 — Local node_modules scan <span class="tag now">build now</span></h2>
+      <p>
+        For each dep, walk <code>node_modules/&lt;dep&gt;/skills/**/SKILL.md</code> on the local
+        filesystem and parse each file. No network, no rate limit, pinned to the installed version.
+        Runs for <strong>every flow that knows the project root</strong> — both <code>detect</code>
+        (which the GitHub stages are too rate-limited to serve) and <code>install &lt;pkg&gt;</code> —
+        ahead of the GitHub stages. Deps resolved here are marked covered so later stages skip them.
+      </p>
+
+      <h2>Resolution Order</h2>
+      <table>
+        <tr>
+          <th>#</th>
+          <th>Source</th>
+          <th>Cost</th>
+          <th>Flow</th>
+        </tr>
+        <tr>
+          <td>0</td>
+          <td>Local <code>node_modules/&lt;dep&gt;/skills</code></td>
+          <td><strong>fs read, no network</strong></td>
+          <td>detect + install</td>
+        </tr>
+        <tr>
+          <td>1</td>
+          <td>Live discovery (npm meta → GitHub search)</td>
+          <td>GitHub Search (rate-limited)</td>
+          <td>install only</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>Registry-pinned repo tree-scan</td>
+          <td>GitHub core REST</td>
+          <td>detect + install</td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td>Static registry skill list</td>
+          <td>offline</td>
+          <td>fallback</td>
+        </tr>
+      </table>
+
+      <h2>Stage 0 Flow</h2>
+      <div class="flow">
+        <div class="step">
+          <div class="n">1</div>
+          <div>
+            <b>Resolve path</b>
+            <span>— <code>join(project, "node_modules", dep, "skills")</code> per dep, in parallel.</span>
+          </div>
+        </div>
+        <div class="step">
+          <div class="n">2</div>
+          <div>
+            <b>Walk for SKILL.md</b>
+            <span
+              >— <code>readdir(skillsDir, { recursive: true })</code>; keep nested
+              <code>*/SKILL.md</code> only. Missing dir → empty, package isn't Intent-bearing.</span
+            >
+          </div>
+        </div>
+        <div class="step">
+          <div class="n">3</div>
+          <div>
+            <b>Parse name</b>
+            <span
+              >— frontmatter <code>name:</code> slug if present, else the folder path (Intent's
+              convention). Shared <code>parseSkillName</code> with the GitHub path.</span
+            >
+          </div>
+        </div>
+        <div class="step">
+          <div class="n">4</div>
+          <div>
+            <b>Emit + cover</b>
+            <span
+              >— append as <code>detectionSource: "local"</code>; record the dep in
+              <code>coveredDeps</code> so stages 1–3 skip it.</span
+            >
+          </div>
+        </div>
+      </div>
+
+      <h2>Local vs GitHub</h2>
+      <table>
+        <tr>
+          <th></th>
+          <th>GitHub scan</th>
+          <th>Stage 0 (node_modules)</th>
+        </tr>
+        <tr>
+          <td>Network</td>
+          <td>REST / Search (rate-limited)</td>
+          <td><strong>none</strong> — local fs</td>
+        </tr>
+        <tr>
+          <td>Version</td>
+          <td>repo <code>HEAD</code> (drift)</td>
+          <td><strong>pinned</strong> to installed</td>
+        </tr>
+        <tr>
+          <td>Offline</td>
+          <td>no</td>
+          <td>yes</td>
+        </tr>
+        <tr>
+          <td>Format</td>
+          <td>SKILL.md</td>
+          <td>SKILL.md (identical)</td>
+        </tr>
+      </table>
+
+      <h2>Surface Changes <span class="tag now">build now</span></h2>
+      <table>
+        <tr>
+          <th>Where</th>
+          <th>Change</th>
+        </tr>
+        <tr>
+          <td><code>matcher/utils.ts</code></td>
+          <td>
+            add <code>discoverLocalSkills(project, dep)</code>; extract shared
+            <code>parseSkillName</code> + <code>dedupByName</code> from <code>discoverRepoSkills</code>;
+            add <code>skillSearchMessage.localScan</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>matcher/index.ts</code></td>
+          <td>
+            Stage 0 block before stage 1; thread <code>project</code> through
+            <code>matchSkills</code>/<code>run</code>; stage 1 skips <code>coveredDeps</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>matcher/types.ts</code></td>
+          <td>
+            <code>MatcherInput.project?</code>; add <code>{ phase: "local"; total }</code> to
+            <code>MatcherProgress</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>shared/types.ts</code> + <code>shared/skill-source.ts</code></td>
+          <td>widen <code>SkillDetectionSource</code> with <code>"local"</code>; icon + label</td>
+        </tr>
+        <tr>
+          <td><code>shared/utils.ts</code></td>
+          <td>detect spinner handles the <code>local</code> phase</td>
+        </tr>
+        <tr>
+          <td><code>detect/index.ts</code> + <code>install/package-install.ts</code></td>
+          <td>pass <code>project</code> into the matcher; render the <code>node_modules</code> source</td>
+        </tr>
+      </table>
+
+      <h2>Method Sketch</h2>
+      <pre><code>discoverLocalSkills(project, dep) -> { name, path }[]   // node_modules/<dep>/skills, no network
+parseSkillName(markdown, fallback) -> string            // shared frontmatter name: parse
+dedupByName(skills) -> skills                            // shared first-wins dedup</code></pre>
+
+      <h2>Roadmap — deeper integration <span class="tag later">later</span></h2>
+      <ul>
+        <li>
+          <strong>Honour the <code>intent</code> field:</strong> read <code>repo</code>/<code>docs</code>
+          and frontmatter <code>type</code>/<code>framework</code> for richer display, instead of
+          relying on the <code>skills/</code> dir alone.
+        </li>
+        <li>
+          <strong><code>requires</code> ordering:</strong> topologically sort installed skills by
+          <code>intent.requires</code> so dependent skills install in order.
+        </li>
+        <li>
+          <strong>Trust allowlist:</strong> respect a consumer's <code>intent.skills</code> allowlist
+          (<code>*</code> / <code>[]</code> / explicit) before wiring anything in.
+        </li>
+        <li>
+          <strong>Registry consumption:</strong> query the TanStack Intent registry (npm keyword
+          <code>tanstack-intent</code>) as a network tier for deps that ship skills out-of-tree —
+          complements, doesn't replace, Stage 0.
+        </li>
+      </ul>
+
+      <h2>Edge Cases</h2>
+      <ul>
+        <li>
+          <strong>No <code>skills/</code> dir / no <code>node_modules</code>:</strong>
+          <code>readdir</code> throws → caught → empty, falls through to GitHub/registry. Same
+          silent-fallback contract as <code>getRepoSkillPaths</code>.
+        </li>
+        <li>
+          <strong>Top-level <code>skills/SKILL.md</code>:</strong> ignored — only nested
+          <code>*/SKILL.md</code> count, matching Intent.
+        </li>
+        <li>
+          <strong>Duplicate skill names</strong> across folders: first-wins via
+          <code>dedupByName</code>.
+        </li>
+        <li>
+          <strong>Monorepo workspaces / PnP:</strong> out of scope for Stage 0 — plain
+          <code>node_modules</code> only; workspace + Yarn PnP roots are roadmap material.
+        </li>
+      </ul>
+
+      <h2>Implementation Steps <span class="tag now">build now</span></h2>
+      <ol class="steps">
+        <li>Add <code>"local"</code> to <code>SkillDetectionSource</code> + icon/label.</li>
+        <li>
+          Extract <code>parseSkillName</code> + <code>dedupByName</code>; add
+          <code>discoverLocalSkills</code> and the <code>localScan</code> message.
+        </li>
+        <li>Add <code>project</code> + <code>local</code> phase to matcher types.</li>
+        <li>Insert the Stage 0 block; thread <code>project</code>; stage 1 skips covered deps.</li>
+        <li>Wire spinners (detect + install) and the <code>node_modules</code> render branch.</li>
+      </ol>
+
+      <h2>Files Touched</h2>
+      <div class="card files">
+        <code>src/services/matcher/utils.ts</code> &nbsp;
+        <code>src/services/matcher/index.ts</code> &nbsp;
+        <code>src/services/matcher/types.ts</code> &nbsp;
+        <code>src/services/shared/types.ts</code> &nbsp;
+        <code>src/services/shared/skill-source.ts</code> &nbsp;
+        <code>src/services/shared/utils.ts</code> &nbsp;
+        <code>src/services/detect/index.ts</code> &nbsp;
+        <code>src/services/install/package-install.ts</code>
+      </div>
+
+      <div class="note">
+        Pure upside: with no <code>node_modules</code> the matcher behaves exactly as today. Stage 0
+        only ever <em>adds</em> a free, version-accurate source ahead of the network stages.
+      </div>
+
+      <div class="note warn">
+        Stage 0 is plain <code>node_modules</code> only. Workspace packages, Yarn PnP, the trust
+        allowlist, and <code>requires</code> ordering are deliberately deferred to the roadmap — don't
+        scope-creep them into the first pass.
+      </div>
+
+      <h2>Tests</h2>
+      <ul>
+        <li><code>discoverLocalSkills</code> finds nested <code>SKILL.md</code>, ignores root-level.</li>
+        <li>Frontmatter <code>name:</code> wins over folder path; missing dir → empty.</li>
+        <li>A dep resolved in Stage 0 is excluded from the stage-1/2 work (covered).</li>
+        <li>Emits <code>{ phase: "local" }</code> only when <code>project</code> is supplied.</li>
+        <li><code>detectionSource: "local"</code> renders under a <code>node_modules</code> header.</li>
+      </ul>
+
+      <footer>
+        better-ai · plan 7 · pairs with dynamic-discovery-plan.html (plan 5), ecosystems-detect-plan.html (plan 6)
+      </footer>
+    </main>
+  </body>
+</html>

@@ -47,7 +47,9 @@ export const configService = {
         console.log(result.path)
       }
     } catch (error) {
-      log.warn(`Could not open an editor: ${error instanceof Error ? error.message : String(error)}`)
+      log.warn(
+        `Could not open an editor: ${error instanceof Error ? error.message : String(error)}`,
+      )
       console.log(result.path)
     }
     outro(pc.dim("Done"))
@@ -56,7 +58,10 @@ export const configService = {
   // Resolve canonical agents for the run when `--agent` was not passed:
   //   autoAgents ? auto-detect : config.agents
   // Returns null to fall back to prompting (autoAgents off + no pinned agents).
-  async resolveConfiguredAgents(project: string, { json }: ConfigInput = {}): Promise<string[] | null> {
+  async resolveConfiguredAgents(
+    project: string,
+    { json }: ConfigInput = {},
+  ): Promise<string[] | null> {
     const config = await resolveConfig({ json })
     if (config.autoAgents) return autoDetectAgents(project)
     return config.agents.length > 0 ? config.agents : null
