@@ -92,10 +92,13 @@ export async function discoverLocalSkills(
     return []
   }
 
-  // Only nested SKILL.md files count — a SKILL.md in the skills/ root has no
-  // own folder and is ignored, matching Intent's scanner. The "/" check also
-  // drops the bare top-level "SKILL.md" (no separator).
-  const skillFiles = relPaths.filter((rel) => rel.endsWith("/SKILL.md"))
+  // readdir returns OS-native separators (backslashes on Windows); normalise to
+  // forward slashes so the filter and folder extraction are platform-agnostic.
+  // Only nested SKILL.md files count — a SKILL.md in the skills/ root has no own
+  // folder and is ignored (the "/" check also drops the bare top-level file).
+  const skillFiles = relPaths
+    .map((rel) => rel.replaceAll("\\", "/"))
+    .filter((rel) => rel.endsWith("/SKILL.md"))
 
   const results = await Promise.all(
     skillFiles.map(async (rel) => {
@@ -202,6 +205,19 @@ export async function discoverRepoSkills(
 }
 
 /**
+ * Pull "owner/repo" out of a package.json `repository` field (string or
+ * `{ url }`). Shared by the npm-registry and local-package-json resolvers.
+ * @returns "owner/repo", or null for missing metadata or non-GitHub repos.
+ */
+function repoFromPackageData(data: { repository?: string | { url?: string } }): string | null {
+  const url = typeof data.repository === "string" ? data.repository : data.repository?.url
+  if (!url) return null
+  // Handle git+https://github.com/owner/repo.git, git://…, and git@github.com:owner/repo.
+  const match = url.match(/github\.com[/:]([^/]+)\/([^/#?]+?)(?:\.git)?(?:[/#?]|$)/)
+  return match ? `${match[1]}/${match[2]}` : null
+}
+
+/**
  * Resolve an npm package to its GitHub "owner/repo" via the registry's
  * repository.url field. Used as the first dynamic-discovery signal — works
  * when a package keeps its skills inside its own source repo (e.g. vercel/ai).
@@ -211,12 +227,24 @@ export async function resolveNpmRepo(pkg: string): Promise<string | null> {
   try {
     const response = await fetch(`https://registry.npmjs.org/${pkg}`)
     if (!response.ok) return null
-    const data = (await response.json()) as { repository?: string | { url?: string } }
-    const url = typeof data.repository === "string" ? data.repository : data.repository?.url
-    if (!url) return null
-    // Handle git+https://github.com/owner/repo.git, git://…, and git@github.com:owner/repo.
-    const match = url.match(/github\.com[/:]([^/]+)\/([^/#?]+?)(?:\.git)?(?:[/#?]|$)/)
-    return match ? `${match[1]}/${match[2]}` : null
+    return repoFromPackageData((await response.json()) as { repository?: string | { url?: string } })
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Resolve a locally-installed package to its GitHub "owner/repo" by reading
+ * node_modules/<dep>/package.json — the network-free counterpart to
+ * resolveNpmRepo, used by stage 0 so a locally-discovered skill carries the
+ * GitHub source the `skills@latest add` CLI needs (it can't install from a bare
+ * npm name). Same package.json that shipped the skills, so no extra round-trip.
+ * @returns "owner/repo", or null when the manifest is missing or non-GitHub.
+ */
+export async function resolveLocalRepo(project: string, dep: string): Promise<string | null> {
+  try {
+    const text = await readFile(join(project, "node_modules", dep, "package.json"), "utf-8")
+    return repoFromPackageData(JSON.parse(text) as { repository?: string | { url?: string } })
   } catch {
     return null
   }

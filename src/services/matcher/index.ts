@@ -51,16 +51,24 @@ export const matcherService = {
       const localHits = await Promise.all(
         [...deps].map(async (dep) => {
           const found = await matcherUtils.discoverLocalSkills(project, dep)
-          return found.length > 0 ? { dep, skills: found } : null
+          if (found.length === 0) return null
+          // The skills install via `skills@latest add <source>`, which needs a
+          // GitHub "owner/repo" — a bare npm name breaks the command. Read it
+          // network-free from the installed package.json (the same manifest that
+          // shipped the skills); fall back to the registry's pinned source, then
+          // the dep name as a last resort so detect still lists it.
+          const localRepo = await matcherUtils.resolveLocalRepo(project, dep)
+          const registrySource = matchedEntries.find((entry) => entry.when.deps.includes(dep))?.source
+          return { dep, skills: found, source: localRepo ?? registrySource ?? dep }
         }),
       )
       for (const hit of localHits) {
         if (!hit) continue
-        seenSources.add(hit.dep)
+        seenSources.add(hit.source)
         coveredDeps.add(hit.dep)
         const names = hit.skills.map((skill) => skill.name)
         localEntries.push({
-          source: hit.dep,
+          source: hit.source,
           label: hit.dep,
           skills: names,
           when: { deps: [hit.dep] },
@@ -81,13 +89,10 @@ export const matcherService = {
     const dynamicEntries: ResolvedSkillEntry[] = []
     if (discover) {
       onProgress?.({ phase: "discover", total: deps.size })
-      // Emit an atomic step, then pause briefly so the message is readable —
-      // tiers resolve fast (often cached) and would otherwise flash past. The
-      // delay only runs when a listener is attached, keeping tests instant.
-      const report = async (message: string) => {
-        if (!onProgress) return
-        onProgress({ phase: "discover-step", message })
-        await new Promise((resolve) => setTimeout(resolve, 2000))
+      // Stream an atomic step naming the action in flight (npm lookup → repo
+      // scan → search) so the spinner reflects real progress.
+      const report = (message: string) => {
+        onProgress?.({ phase: "discover-step", message })
       }
       const hits = await Promise.all(
         // Three tiers per dep, first repo with a SKILL.md wins (example: dep `hono`).
@@ -96,21 +101,21 @@ export const matcherService = {
         // already resolved locally are skipped.
         [...deps].filter((dep) => !coveredDeps.has(dep)).map(async (dep) => {
           // 1a. npm `repository` field → the dep's own repo (hono → honojs/hono).
-          await report(matcherUtils.skillSearchMessage.npmLookup(dep))
+          report(matcherUtils.skillSearchMessage.npmLookup(dep))
           const npmRepo = await matcherUtils.resolveNpmRepo(dep)
           if (npmRepo) {
-            await report(matcherUtils.skillSearchMessage.repoScan(npmRepo))
+            report(matcherUtils.skillSearchMessage.repoScan(npmRepo))
             const skills = await matcherUtils.discoverRepoSkills(npmRepo)
             if (skills.length > 0) return { source: npmRepo, dep, skills }
             // 1b. npm owner + `*skill*` repo → a sibling repo under that owner (user:honojs skill).
             const owner = npmRepo.split("/")[0] ?? npmRepo
-            await report(matcherUtils.skillSearchMessage.ownerSearch(owner, dep))
+            report(matcherUtils.skillSearchMessage.ownerSearch(owner, dep))
             const ownerHit = await matcherUtils.resolveFromSearch(`user:${owner} skill in:name`, dep)
             if (ownerHit) return ownerHit
           }
           // 1c. global `<pkg> skill` search → an unrelated owner (hono → yusukebe/hono-skill).
           const term = dep.split("/").at(-1) ?? dep
-          await report(matcherUtils.skillSearchMessage.globalSearch(term))
+          report(matcherUtils.skillSearchMessage.globalSearch(term))
           return matcherUtils.resolveFromSearch(`${term} skill`, dep)
         }),
       )

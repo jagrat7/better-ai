@@ -86,10 +86,33 @@ test("discoverLocalSkills returns [] when the package ships no skills dir", asyn
   }
 })
 
-test("matchSkills stage 0 covers local deps and skips them in the GitHub stage", async () => {
+test("resolveLocalRepo reads owner/repo from the installed package.json, no network", async () => {
+  const project = await mkdtemp(join(tmpdir(), "bttrai-repo-"))
+  const pkgDir = join(project, "node_modules", "ai")
+  await mkdir(pkgDir, { recursive: true })
+  await writeFile(
+    join(pkgDir, "package.json"),
+    JSON.stringify({ repository: { url: "git+https://github.com/vercel/ai.git" } }),
+  )
+
+  try {
+    expect(await matcherUtils.resolveLocalRepo(project, "ai")).toBe("vercel/ai")
+    // Missing manifest → null (caller falls back), never throws.
+    expect(await matcherUtils.resolveLocalRepo(project, "absent")).toBeNull()
+  } finally {
+    await rm(project, { recursive: true, force: true })
+  }
+})
+
+test("matchSkills stage 0 covers local deps with the resolved GitHub source", async () => {
   const progress: Array<{ phase: string; total?: number }> = []
   spyOn(matcherUtils, "discoverLocalSkills").mockImplementation((_project, dep) =>
     Promise.resolve(dep === "ai" ? [{ name: "use-ai-sdk", path: "skills/use-ai-sdk" }] : []),
+  )
+  // Local package.json resolves the GitHub repo network-free — the local entry
+  // must carry "vercel/ai", not the bare npm name, so `skills@latest add` works.
+  spyOn(matcherUtils, "resolveLocalRepo").mockImplementation((_project, dep) =>
+    Promise.resolve(dep === "ai" ? "vercel/ai" : null),
   )
   // Only "turbo" should reach GitHub — "ai" is resolved locally in stage 0.
   const githubFetch = spyOn(matcherUtils, "discoverRepoSkills").mockResolvedValue([])
@@ -104,15 +127,16 @@ test("matchSkills stage 0 covers local deps and skips them in the GitHub stage",
 
   // Stage 0 fired with the dep count; the local entry leads and is tagged.
   expect(progress[0]).toEqual({ phase: "local", total: 2 })
-  expect(result[0]?.source).toBe("ai")
+  expect(result[0]?.source).toBe("vercel/ai")
   expect(result[0]?.detectionSource).toBe("local")
   expect(result[0]?.resolvedSkillPaths).toEqual(["skills/use-ai-sdk"])
-  // The GitHub tree-scan never ran for the locally-resolved "ai" repo.
+  // The GitHub tree-scan never ran for the locally-resolved "ai" repo (its
+  // source is already in seenSources, so stage 2 skips it too).
   expect(githubFetch.mock.calls.flat()).not.toContain("vercel/ai")
 })
 
 test("matchSkills only falls back for sources without GitHub skills", async () => {
-  const progress: Array<{ phase: "github" | "fallback"; total: number }> = []
+  const progress: Array<{ phase: string; total?: number }> = []
   spyOn(matcherUtils, "discoverRepoSkills").mockImplementation((repo) =>
     Promise.resolve(
       repo === "vercel/ai" ? [{ name: "use-ai-sdk", path: "skills/use-ai-sdk" }] : [],
