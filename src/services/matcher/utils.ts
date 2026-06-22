@@ -1,3 +1,5 @@
+import { readdir, readFile } from "node:fs/promises"
+import { join } from "node:path"
 import type { WhenCondition } from "../../registry/types"
 
 /**
@@ -28,10 +30,89 @@ export const skillSearchMessage = {
   repoScan: (repo: string) => `Scanning ${repo} on GitHub for skills`,
   ownerSearch: (owner: string, dep: string) => `Searching ${owner}'s GitHub repos for ${dep} skills`,
   globalSearch: (term: string) => `Searching GitHub for ${term} skills`,
+  // Stage 0
+  localScan: (total: number) => `Scanning node_modules across ${total} package(s)...`,
   // Stage 2
   fetchingPinned: (total: number) => `Fetching ${total} registry-pinned repo(s) from GitHub...`,
   // Stage 3
   fallback: (total: number) => `Falling back to the hand-maintained list (${total} repo(s))...`,
+}
+
+/**
+ * Pull the `name:` slug from a SKILL.md's YAML frontmatter — that's what
+ * `skills@latest` expects as the --skill argument, and it may differ from the
+ * folder name (folder `use-ai-sdk` can declare `name: ai-sdk`). Falls back to
+ * the given folder name when the field is absent or unparseable. Shared by the
+ * GitHub and local node_modules scanners.
+ */
+export function parseSkillName(markdown: string, fallback: string): string {
+  // Extract the YAML frontmatter block between leading `---` fences.
+  const frontmatter = markdown.match(/^---\s*\n([\s\S]*?)\n---/)?.[1] ?? ""
+  // Capture `name: value` supporting double-quoted, single-quoted, and bare values.
+  const nameMatch = frontmatter.match(/^name:\s*(?:"([^"]+)"|'([^']+)'|(.+?))\s*$/m)
+  const slug = (nameMatch?.[1] ?? nameMatch?.[2] ?? nameMatch?.[3])?.trim()
+  return slug ?? fallback
+}
+
+/**
+ * Keep the first occurrence of each skill name. Repos/packages can mirror the
+ * same SKILL.md under multiple folders (e.g. stripe/ai); paths arrive sorted so
+ * the first wins (path only drives display; --skill uses name).
+ */
+function dedupByName(
+  skills: Array<{ name: string; path: string }>,
+): Array<{ name: string; path: string }> {
+  const seen = new Set<string>()
+  return skills.filter((skill) => {
+    if (seen.has(skill.name)) return false
+    seen.add(skill.name)
+    return true
+  })
+}
+
+/**
+ * Scan an installed package's local `skills/` directory for SKILL.md files —
+ * the TanStack Intent convention (skills ship inside the npm tarball, so they
+ * land in node_modules on install). Pure filesystem read: no network, no rate
+ * limit, and pinned to the version actually installed. A package without a
+ * `skills/` dir simply yields nothing and the caller falls through to GitHub.
+ * @returns Skill folders found under node_modules/<dep>/skills, or [].
+ */
+export async function discoverLocalSkills(
+  project: string,
+  dep: string,
+): Promise<Array<{ name: string; path: string }>> {
+  const skillsDir = join(project, "node_modules", dep, "skills")
+
+  let relPaths: string[]
+  try {
+    relPaths = await readdir(skillsDir, { recursive: true })
+  } catch {
+    // No skills/ dir (or unreadable) → not an Intent-bearing package.
+    return []
+  }
+
+  // Only nested SKILL.md files count — a SKILL.md in the skills/ root has no
+  // own folder and is ignored, matching Intent's scanner. The "/" check also
+  // drops the bare top-level "SKILL.md" (no separator).
+  const skillFiles = relPaths.filter((rel) => rel.endsWith("/SKILL.md"))
+
+  const results = await Promise.all(
+    skillFiles.map(async (rel) => {
+      // Folder path relative to skills/ — Intent uses this as the skill name
+      // when frontmatter omits one (e.g. `ai-sdk` or `group/ai-sdk`).
+      const folder = rel.slice(0, rel.lastIndexOf("/"))
+      const path = `skills/${folder}`
+      try {
+        const text = await readFile(join(skillsDir, rel), "utf-8")
+        return { name: parseSkillName(text, folder), path }
+      } catch {
+        return { name: folder, path }
+      }
+    }),
+  )
+
+  return dedupByName(results)
 }
 
 /**
@@ -110,27 +191,14 @@ export async function discoverRepoSkills(
         )
         if (!response.ok) return { name: folderName, path: skillPath }
         const text = await response.text()
-        // Extract YAML frontmatter block between leading `---` fences.
-        const frontmatter = text.match(/^---\s*\n([\s\S]*?)\n---/)?.[1] ?? ""
-        // Capture `name: value` supporting double-quoted, single-quoted, and bare values.
-        const nameMatch = frontmatter.match(/^name:\s*(?:"([^"]+)"|'([^']+)'|(.+?))\s*$/m)
-        const slug = (nameMatch?.[1] ?? nameMatch?.[2] ?? nameMatch?.[3])?.trim()
-        return { name: slug ?? folderName, path: skillPath }
+        return { name: parseSkillName(text, folderName), path: skillPath }
       } catch {
         return { name: folderName, path: skillPath }
       }
     }),
   )
 
-  // Deduplicate by skill name — repos like stripe/ai mirror the same SKILL.md
-  // under multiple skills/ subdirectories. Paths are sorted alphabetically, so
-  // we keep the first occurrence (path only drives display; --skill uses name).
-  const seen = new Set<string>()
-  return results.filter((r) => {
-    if (seen.has(r.name)) return false
-    seen.add(r.name)
-    return true
-  })
+  return dedupByName(results)
 }
 
 /**

@@ -29,9 +29,15 @@ export type MatcherInput = {
   // install sets this — the detect flow scans every project dep, far too many
   // to probe without tripping GitHub's unauthenticated rate limit.
   discover?: boolean
+  // Project root. When set, stage 0 scans node_modules/<dep>/skills for
+  // tarball-shipped SKILL.md files (the TanStack Intent convention) — a free,
+  // offline, version-pinned source ahead of any GitHub fetch.
+  project?: string
 }
 
 export type MatcherProgress =
+  // Stage 0 local node_modules scan (any flow that knows the project root).
+  | { phase: "local"; total: number }
   // Stage 1 live discovery (package-install only). "discover" opens the spinner
   // with the dep count; "discover-step" streams atomic sub-actions (npm lookup,
   // GitHub repo scan, GitHub search) as each tier runs.

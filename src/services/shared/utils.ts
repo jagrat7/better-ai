@@ -53,40 +53,45 @@ export async function runDetectionWithProgress(
   { quiet = false }: { quiet?: boolean } = {},
 ): Promise<DetectResult> {
   const s = !quiet ? spinner() : null
-  // Track whether a fallback spinner was actually started so we know whether
-  // to stop it after detection completes.
-  let fallbackStarted = false
+  // One spinner advanced through stages via .message(), started lazily on the
+  // first stage with work so a project with zero matches shows no spinner.
+  let started = false
+  const show = (message: string) => {
+    if (!s) return
+    if (started) {
+      s.message(message)
+      return
+    }
+    s.start(message)
+    started = true
+  }
   const result = await detectService.run({
     ...input,
-    // Fires once, right after deps are detected (before GitHub fetches).
+    // Fires once, right after deps are detected (before any fetch).
     onDeps: (deps) => {
       if (quiet) return
       log.info(`Found ${pc.bold(deps.size.toString())} dependencies in ${pc.dim(input.project)}`)
     },
-    // Fires twice: once when GitHub fetches start, once when fallback starts.
+    // Fires per matcher stage. The detect flow opts into stage 0 (local
+    // node_modules) but never the package-install-only discover stages, so
+    // only local/github/fallback reach here.
     onProgress: (progress) => {
-      if (!s) return
-      if (progress.phase === "github") {
-        // Skip spinner if nothing matched the registry — nothing to fetch.
-        if (progress.total === 0) return
-        s.start(`Fetching skills from GitHub... (${progress.total} matches)`)
-        return
+      switch (progress.phase) {
+        case "local":
+          if (progress.total > 0) show("Scanning node_modules for skills...")
+          break
+        case "github":
+          if (progress.total > 0) show(`Fetching skills from GitHub... (${progress.total} matches)`)
+          break
+        case "fallback":
+          if (progress.total > 0) {
+            show(`Searching remaining deps in fallback list... (${progress.total} remaining)`)
+          }
+          break
       }
-      // The detect flow never opts into dynamic discovery, so the stage-1
-      // discover phases never reach here — ignore them defensively.
-      if (progress.phase !== "fallback") return
-      // phase === "fallback": GitHub fetches finished, transition the spinner.
-      s.stop("Fetched skills from GitHub")
-      // Skip fallback step entirely when every source returned GitHub skills.
-      if (progress.total === 0) return
-      s.start(`Searching remaining deps in fallback list... (${progress.total} remaining)`)
-      fallbackStarted = true
     },
   })
-  // Only stop the fallback spinner if we actually started one.
-  if (fallbackStarted) {
-    s?.stop("Fallback search complete")
-  }
+  if (started) s?.stop("Skill detection complete")
   return result
 }
 

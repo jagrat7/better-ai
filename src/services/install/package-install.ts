@@ -75,8 +75,15 @@ export class PackageInstallService extends InstallBase {
       deps,
       installedSkills,
       discover: true,
+      project,
       onProgress: (progress) => {
         switch (progress.phase) {
+          // Stage 0: local node_modules scan (free, version-pinned).
+          case "local":
+            if (progress.total > 0) {
+              searchSpinner.message(skillSearchMessage.localScan(progress.total))
+            }
+            break
           // Stage 1: live discovery — stream the exact npm/GitHub action.
           case "discover-step":
             searchSpinner.message(progress.message)

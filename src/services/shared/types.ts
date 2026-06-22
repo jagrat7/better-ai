@@ -1,4 +1,4 @@
-export type SkillDetectionSource = "github" | "fallback"
+export type SkillDetectionSource = "github" | "fallback" | "local"
 
 export type McpServerJson = {
   key: string
