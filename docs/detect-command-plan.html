@@ -20,79 +20,195 @@
         --radius: 12px;
         --maxw: 860px;
       }
-      * { box-sizing: border-box; }
+      * {
+        box-sizing: border-box;
+      }
       body {
         margin: 0;
         background: var(--bg);
         color: var(--text);
-        font: 15px/1.65 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        font:
+          15px/1.65 ui-sans-serif,
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
       }
-      main { max-width: var(--maxw); margin: 0 auto; padding: 48px 24px 96px; }
+      main {
+        max-width: var(--maxw);
+        margin: 0 auto;
+        padding: 48px 24px 96px;
+      }
       nav {
-        display: flex; gap: 8px; flex-wrap: wrap;
-        margin-bottom: 32px; font-size: 13px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 32px;
+        font-size: 13px;
       }
       nav a {
-        color: var(--muted); text-decoration: none;
-        border: 1px solid var(--border); border-radius: 999px;
+        color: var(--muted);
+        text-decoration: none;
+        border: 1px solid var(--border);
+        border-radius: 999px;
         padding: 4px 12px;
       }
-      nav a.active { color: var(--text); border-color: var(--accent); background: var(--accent-soft); }
-      h1 { font-size: 30px; margin: 0 0 8px; letter-spacing: -0.02em; }
-      h2 {
-        font-size: 19px; margin: 40px 0 14px;
-        padding-bottom: 6px; border-bottom: 1px solid var(--border);
+      nav a.active {
+        color: var(--text);
+        border-color: var(--accent);
+        background: var(--accent-soft);
       }
-      h3 { font-size: 15px; margin: 22px 0 8px; color: var(--accent); }
-      p, li { color: var(--text); }
-      .lede { color: var(--muted); font-size: 16px; margin: 0 0 8px; }
+      h1 {
+        font-size: 30px;
+        margin: 0 0 8px;
+        letter-spacing: -0.02em;
+      }
+      h2 {
+        font-size: 19px;
+        margin: 40px 0 14px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--border);
+      }
+      h3 {
+        font-size: 15px;
+        margin: 22px 0 8px;
+        color: var(--accent);
+      }
+      p,
+      li {
+        color: var(--text);
+      }
+      .lede {
+        color: var(--muted);
+        font-size: 16px;
+        margin: 0 0 8px;
+      }
       code {
-        background: var(--code-bg); border: 1px solid var(--border);
-        border-radius: 6px; padding: 1px 6px; font-size: 13px;
+        background: var(--code-bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 1px 6px;
+        font-size: 13px;
         font-family: ui-monospace, "SF Mono", Menlo, monospace;
       }
       pre {
-        background: var(--code-bg); border: 1px solid var(--border);
-        border-radius: var(--radius); padding: 16px; overflow-x: auto;
-        font-size: 13px; line-height: 1.6;
+        background: var(--code-bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px;
+        overflow-x: auto;
+        font-size: 13px;
+        line-height: 1.6;
         font-family: ui-monospace, "SF Mono", Menlo, monospace;
       }
-      pre code { background: none; border: none; padding: 0; }
-      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-      @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+      pre code {
+        background: none;
+        border: none;
+        padding: 0;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      @media (max-width: 640px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
       .card {
-        background: var(--surface); border: 1px solid var(--border);
-        border-radius: var(--radius); padding: 16px 18px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px 18px;
       }
-      .card h3 { margin-top: 0; }
+      .card h3 {
+        margin-top: 0;
+      }
       .tag {
-        display: inline-block; font-size: 11px; letter-spacing: 0.04em;
-        text-transform: uppercase; color: var(--muted);
-        border: 1px solid var(--border); border-radius: 999px; padding: 2px 9px;
+        display: inline-block;
+        font-size: 11px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--muted);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 2px 9px;
       }
-      .tag.before { color: var(--warn); }
-      .tag.after { color: var(--ok); }
-      table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 14px; }
-      th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
-      th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
-      ol.steps { counter-reset: step; list-style: none; padding: 0; }
+      .tag.before {
+        color: var(--warn);
+      }
+      .tag.after {
+        color: var(--ok);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 8px 0;
+        font-size: 14px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 9px 10px;
+        border-bottom: 1px solid var(--border);
+        vertical-align: top;
+      }
+      th {
+        color: var(--muted);
+        font-weight: 600;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      ol.steps {
+        counter-reset: step;
+        list-style: none;
+        padding: 0;
+      }
       ol.steps > li {
-        position: relative; padding: 12px 0 12px 44px; border-bottom: 1px solid var(--border);
+        position: relative;
+        padding: 12px 0 12px 44px;
+        border-bottom: 1px solid var(--border);
       }
       ol.steps > li::before {
-        counter-increment: step; content: counter(step);
-        position: absolute; left: 0; top: 12px;
-        width: 28px; height: 28px; border-radius: 8px;
-        background: var(--accent-soft); color: var(--accent);
-        display: grid; place-items: center; font-size: 13px; font-weight: 700;
+        counter-increment: step;
+        content: counter(step);
+        position: absolute;
+        left: 0;
+        top: 12px;
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        display: grid;
+        place-items: center;
+        font-size: 13px;
+        font-weight: 700;
       }
-      .files code { display: inline-block; margin: 2px 0; }
+      .files code {
+        display: inline-block;
+        margin: 2px 0;
+      }
       .note {
-        background: var(--surface-2); border-left: 3px solid var(--accent);
-        border-radius: 0 8px 8px 0; padding: 10px 14px; margin: 14px 0; color: var(--muted);
+        background: var(--surface-2);
+        border-left: 3px solid var(--accent);
+        border-radius: 0 8px 8px 0;
+        padding: 10px 14px;
+        margin: 14px 0;
+        color: var(--muted);
       }
-      .arrow { color: var(--accent); }
-      footer { margin-top: 56px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--border); padding-top: 16px; }
+      .arrow {
+        color: var(--accent);
+      }
+      footer {
+        margin-top: 56px;
+        color: var(--muted);
+        font-size: 13px;
+        border-top: 1px solid var(--border);
+        padding-top: 16px;
+      }
     </style>
   </head>
   <body>
@@ -105,24 +221,39 @@
       </nav>
 
       <h1>Detect Command Plan</h1>
-      <p class="lede">Move the project-wide detect-and-install flow into <code>detect</code>, and free up <code>install</code> to mean a package install.</p>
+      <p class="lede">
+        Move the project-wide detect-and-install flow into <code>detect</code>, and free up
+        <code>install</code> to mean a package install.
+      </p>
 
       <h2>Goal</h2>
-      <p>Today the default command (<code>install</code>) scans the whole project, prompts, and installs every matched MCP server + skill. That whole flow becomes <code>detect</code>. The <code>install</code> name is then reused for package-targeted installs (see plan&nbsp;2).</p>
+      <p>
+        Today the default command (<code>install</code>) scans the whole project, prompts, and
+        installs every matched MCP server + skill. That whole flow becomes <code>detect</code>. The
+        <code>install</code> name is then reused for package-targeted installs (see plan&nbsp;2).
+      </p>
 
       <h2>Before &rarr; After</h2>
       <div class="grid">
         <div class="card">
           <span class="tag before">Before</span>
           <h3><code>detect</code></h3>
-          <p>Scans deps, matches registry, <strong>prints</strong> MCP servers + skills. Read-only.</p>
+          <p>
+            Scans deps, matches registry, <strong>prints</strong> MCP servers + skills. Read-only.
+          </p>
           <h3><code>install</code> (default)</h3>
-          <p>Scans deps, matches, <strong>prompts</strong>, installs matched MCP servers + skills to agents.</p>
+          <p>
+            Scans deps, matches, <strong>prompts</strong>, installs matched MCP servers + skills to
+            agents.
+          </p>
         </div>
         <div class="card">
           <span class="tag after">After</span>
           <h3><code>detect</code> (default)</h3>
-          <p>Scans deps, matches, prompts, <strong>installs</strong> matched MCP servers + skills. Absorbs today's install flow. <code>--list</code> keeps the read-only print mode.</p>
+          <p>
+            Scans deps, matches, prompts, <strong>installs</strong> matched MCP servers + skills.
+            Absorbs today's install flow. <code>--list</code> keeps the read-only print mode.
+          </p>
           <h3><code>install &lt;package&gt;</code></h3>
           <p>Package-targeted. Runs a real package install + its extras. See plan&nbsp;2.</p>
         </div>
@@ -130,33 +261,90 @@
 
       <h2>Command Surface</h2>
       <table>
-        <tr><th>Command</th><th>Behavior</th></tr>
-        <tr><td><code>bttrai</code></td><td>Defaults to <code>detect</code>: project-wide detect + install.</td></tr>
-        <tr><td><code>bttrai detect</code></td><td>Scan, prompt, install matched MCP servers + skills.</td></tr>
-        <tr><td><code>bttrai detect --auto</code></td><td>Skip prompts, install resolved matches.</td></tr>
-        <tr><td><code>bttrai detect --list</code></td><td>Print matches only, install nothing (today's read-only detect).</td></tr>
-        <tr><td><code>bttrai detect --agent cursor</code></td><td>Install to specific agents.</td></tr>
-        <tr><td><code>bttrai detect --skills / --mcp</code></td><td>Scope to one kind.</td></tr>
-        <tr><td><code>bttrai detect --json</code></td><td>Machine-readable output, no execution.</td></tr>
+        <tr>
+          <th>Command</th>
+          <th>Behavior</th>
+        </tr>
+        <tr>
+          <td><code>bttrai</code></td>
+          <td>Defaults to <code>detect</code>: project-wide detect + install.</td>
+        </tr>
+        <tr>
+          <td><code>bttrai detect</code></td>
+          <td>Scan, prompt, install matched MCP servers + skills.</td>
+        </tr>
+        <tr>
+          <td><code>bttrai detect --auto</code></td>
+          <td>Skip prompts, install resolved matches.</td>
+        </tr>
+        <tr>
+          <td><code>bttrai detect --list</code></td>
+          <td>Print matches only, install nothing (today's read-only detect).</td>
+        </tr>
+        <tr>
+          <td><code>bttrai detect --agent cursor</code></td>
+          <td>Install to specific agents.</td>
+        </tr>
+        <tr>
+          <td><code>bttrai detect --skills / --mcp</code></td>
+          <td>Scope to one kind.</td>
+        </tr>
+        <tr>
+          <td><code>bttrai detect --json</code></td>
+          <td>Machine-readable output, no execution.</td>
+        </tr>
       </table>
 
       <h2>Decisions</h2>
       <ul>
-        <li><strong>Default command</strong> moves from <code>install</code> to <code>detect</code>.</li>
-        <li><strong>Read-only listing</strong> is preserved behind <code>detect --list</code> (or <code>--dry-run</code>); <code>--json</code> already never executes.</li>
-        <li><strong>Flags carry over</strong> unchanged: <code>--auto</code>, <code>--agent</code>, <code>--skills</code>, <code>--mcp</code>, <code>--json</code> now live on <code>detect</code>.</li>
-        <li><strong>Preset/config flags</strong> (<code>--preset</code>, <code>--add</code>) also attach to <code>detect</code>, not <code>install</code> (plans&nbsp;3 &amp; 4).</li>
-        <li><strong>Service naming:</strong> keep the pure pipeline <code>detectService</code> in <code>src/services/detector/detect.ts</code>; the interactive flow currently in <code>InstallService</code> is repurposed as the <code>detect</code> command handler.</li>
+        <li>
+          <strong>Default command</strong> moves from <code>install</code> to <code>detect</code>.
+        </li>
+        <li>
+          <strong>Read-only listing</strong> is preserved behind <code>detect --list</code> (or
+          <code>--dry-run</code>); <code>--json</code> already never executes.
+        </li>
+        <li>
+          <strong>Flags carry over</strong> unchanged: <code>--auto</code>, <code>--agent</code>,
+          <code>--skills</code>, <code>--mcp</code>, <code>--json</code> now live on
+          <code>detect</code>.
+        </li>
+        <li>
+          <strong>Preset/config flags</strong> (<code>--preset</code>, <code>--add</code>) also
+          attach to <code>detect</code>, not <code>install</code> (plans&nbsp;3 &amp; 4).
+        </li>
+        <li>
+          <strong>Service naming:</strong> keep the pure pipeline <code>detectService</code> in
+          <code>src/services/detector/detect.ts</code>; the interactive flow currently in
+          <code>InstallService</code> is repurposed as the <code>detect</code> command handler.
+        </li>
       </ul>
 
       <h2>Implementation Steps</h2>
       <ol class="steps">
-        <li>In <code>src/cli.ts</code>, make the <code>detect</code> procedure drive the interactive install flow (today's <code>install()</code>), and add its options: <code>auto</code>, <code>agent</code>, <code>skills</code>, <code>mcp</code>, <code>list</code>.</li>
-        <li>Add a <code>list</code> (read-only) branch that calls the current print logic in <code>detectService.command</code>; default path runs install.</li>
+        <li>
+          In <code>src/cli.ts</code>, make the <code>detect</code> procedure drive the interactive
+          install flow (today's <code>install()</code>), and add its options: <code>auto</code>,
+          <code>agent</code>, <code>skills</code>, <code>mcp</code>, <code>list</code>.
+        </li>
+        <li>
+          Add a <code>list</code> (read-only) branch that calls the current print logic in
+          <code>detectService.command</code>; default path runs install.
+        </li>
         <li>Move <code>default: true</code> from <code>install</code> to <code>detect</code>.</li>
-        <li>Repurpose <code>InstallService</code> as the detect-flow service (rename to <code>DetectFlowService</code> or keep file, retarget the export) so naming matches behavior.</li>
-        <li>Reduce the <code>install</code> procedure to a placeholder until plan&nbsp;2 lands (or land both together).</li>
-        <li>Drop the <code>--auto requires --agent</code> hard error once config agents exist (coordinated with plan&nbsp;3).</li>
+        <li>
+          Repurpose <code>InstallService</code> as the detect-flow service (rename to
+          <code>DetectFlowService</code> or keep file, retarget the export) so naming matches
+          behavior.
+        </li>
+        <li>
+          Reduce the <code>install</code> procedure to a placeholder until plan&nbsp;2 lands (or
+          land both together).
+        </li>
+        <li>
+          Drop the <code>--auto requires --agent</code> hard error once config agents exist
+          (coordinated with plan&nbsp;3).
+        </li>
         <li>Update help text, descriptions, and README command table.</li>
       </ol>
 
@@ -166,18 +354,30 @@
         <code>src/services/detector/detect.ts</code> &nbsp; <code>README.md</code>
       </div>
 
-      <div class="note">Coordinate the <code>default: true</code> switch with plan&nbsp;2 so there is never a window where the default command is broken.</div>
+      <div class="note">
+        Coordinate the <code>default: true</code> switch with plan&nbsp;2 so there is never a window
+        where the default command is broken.
+      </div>
 
       <h2>Tests</h2>
       <ul>
-        <li><code>bttrai detect</code> installs matched MCP servers + skills (was the old install path).</li>
+        <li>
+          <code>bttrai detect</code> installs matched MCP servers + skills (was the old install
+          path).
+        </li>
         <li><code>bttrai detect --list</code> prints matches and installs nothing.</li>
-        <li><code>--auto</code>, <code>--agent</code>, <code>--skills</code>, <code>--mcp</code> behave as they did on <code>install</code>.</li>
+        <li>
+          <code>--auto</code>, <code>--agent</code>, <code>--skills</code>,
+          <code>--mcp</code> behave as they did on <code>install</code>.
+        </li>
         <li>Running <code>bttrai</code> with no args resolves to <code>detect</code>.</li>
         <li><code>--json</code> output unchanged and non-executing.</li>
       </ul>
 
-      <footer>better-ai · plan 1 of 4 · pairs with install-package-plan.html, config-plan.html, preset-plan.html</footer>
+      <footer>
+        better-ai · plan 1 of 4 · pairs with install-package-plan.html, config-plan.html,
+        preset-plan.html
+      </footer>
     </main>
   </body>
 </html>

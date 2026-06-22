@@ -110,7 +110,15 @@ test("hoistInstallFlags pulls bttrai flags out of forwarded args", () => {
 })
 
 test("hoistInstallFlags supports --agent variadic", () => {
-  const result = hoistInstallFlags(["ai", "--project", "./app", "--agent", "cursor", "claude-code", "-D"])
+  const result = hoistInstallFlags([
+    "ai",
+    "--project",
+    "./app",
+    "--agent",
+    "cursor",
+    "claude-code",
+    "-D",
+  ])
 
   expect(result.project).toBe("./app")
   expect(result.agent).toEqual(["cursor", "claude-code"])

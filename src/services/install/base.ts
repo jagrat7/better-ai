@@ -1,9 +1,6 @@
 import { log, multiselect } from "@clack/prompts"
 import pc from "picocolors"
-import {
-  getSkillDetectionSourceIcon,
-  getSkillDetectionSourceKey,
-} from "../shared/skill-source"
+import { getSkillDetectionSourceIcon, getSkillDetectionSourceKey } from "../shared/skill-source"
 import { promptWithCancel } from "../shared/utils"
 import { configService } from "../config"
 import { agentOptionsWithHints, warnGlobalOnlyAgents } from "./utils"

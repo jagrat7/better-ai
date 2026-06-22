@@ -163,16 +163,25 @@ export function validateConfig(raw: unknown): ConfigValidation {
   }
 
   // Same resolver gap: `z.record` value types degrade to `unknown` under tsc.
-  const presets = Object.entries(config.presets) as [string, { mcp?: string[]; skills?: string[] }][]
+  const presets = Object.entries(config.presets) as [
+    string,
+    { mcp?: string[]; skills?: string[] },
+  ][]
   for (const [name, preset] of presets) {
     for (const key of preset.mcp ?? []) {
       if (!knownMcpKeys.has(key)) {
-        errors.push({ type: "preset", message: `Preset "${name}" references unknown MCP server "${key}"` })
+        errors.push({
+          type: "preset",
+          message: `Preset "${name}" references unknown MCP server "${key}"`,
+        })
       }
     }
     for (const skill of preset.skills ?? []) {
       if (!knownSkillNames.has(skill)) {
-        errors.push({ type: "preset", message: `Preset "${name}" references unknown skill "${skill}"` })
+        errors.push({
+          type: "preset",
+          message: `Preset "${name}" references unknown skill "${skill}"`,
+        })
       }
     }
   }
@@ -254,7 +263,11 @@ export async function resolveConfig({ json }: ConfigInput = {}): Promise<Config>
   if (!file.exists) return defaultConfig
 
   if ("jsonError" in file) {
-    return handleInvalidConfig([{ type: "json", message: `Malformed JSON: ${file.jsonError}` }], path, { json })
+    return handleInvalidConfig(
+      [{ type: "json", message: `Malformed JSON: ${file.jsonError}` }],
+      path,
+      { json },
+    )
   }
 
   const validation = validateConfig(file.raw)

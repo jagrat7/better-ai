@@ -1,6 +1,7 @@
 import { log, outro, spinner } from "@clack/prompts"
 import pc from "picocolors"
 import { matcherService } from "../matcher"
+import { readSkillsLock } from "../shared/utils"
 import {
   executeInstallations,
   extractPackageNames,
@@ -21,7 +22,15 @@ type SelectionResult = Pick<
 // `install <pkg>` CLI command. Honors the same scope/agent flags as the project
 // install (--mcp/--skills/--agent/--auto).
 export class PackageInstallService extends InstallBase {
-  async run({ project, rawArgs, mcp, skills, agent, auto, json }: PackageInstallInput): Promise<void> {
+  async run({
+    project,
+    rawArgs,
+    mcp,
+    skills,
+    agent,
+    auto,
+    json,
+  }: PackageInstallInput): Promise<void> {
     const { packageManager, preferredPackageManager, usedFallback } =
       await resolvePackageManager(project)
 
@@ -54,7 +63,7 @@ export class PackageInstallService extends InstallBase {
     // Match extras, excluding universal (wildcard) entries so a package-targeted
     // install stays focused on the named packages. Read skills-lock.json so
     // already-installed skills get flagged and de-selected, same as the detect flow.
-    const installedSkills = await matcherService.readSkillsLock(project)
+    const installedSkills = await readSkillsLock(project)
     // discover: resolve skills for named packages absent from the static registry
     // (npm repo metadata → GitHub repo search). Safe here — only the few packages
     // the user explicitly installed are probed.

@@ -1,5 +1,6 @@
 import { afterEach, expect, mock, spyOn, test } from "bun:test"
 import { matcherService } from "../../src/services/matcher"
+import * as matcherUtils from "../../src/services/matcher/utils"
 
 afterEach(() => {
   mock.restore()
@@ -22,7 +23,7 @@ test("getRepoSkillPaths discovers installable paths from GitHub", async () => {
     return Promise.resolve(Response.json(body))
   })
 
-  const result = await matcherService.getRepoSkillPaths("vercel/ai")
+  const result = await matcherUtils.getRepoSkillPaths("vercel/ai")
 
   expect(result).toEqual([
     "packages/ai/skills/ai-sdk",
@@ -32,7 +33,7 @@ test("getRepoSkillPaths discovers installable paths from GitHub", async () => {
 })
 
 test("matchSkills uses fetched GitHub paths when they match configured skills", async () => {
-  spyOn(matcherService, "discoverRepoSkills").mockResolvedValue([
+  spyOn(matcherUtils, "discoverRepoSkills").mockResolvedValue([
     { name: "ai-sdk", path: "packages/ai/skills/ai-sdk" },
     {
       name: "list-npm-package-content",
@@ -58,7 +59,7 @@ test("matchSkills uses fetched GitHub paths when they match configured skills", 
 
 test("matchSkills only falls back for sources without GitHub skills", async () => {
   const progress: Array<{ phase: "github" | "fallback"; total: number }> = []
-  spyOn(matcherService, "discoverRepoSkills").mockImplementation((repo) =>
+  spyOn(matcherUtils, "discoverRepoSkills").mockImplementation((repo) =>
     Promise.resolve(
       repo === "vercel/ai" ? [{ name: "use-ai-sdk", path: "skills/use-ai-sdk" }] : [],
     ),

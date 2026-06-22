@@ -7,7 +7,7 @@ import {
   getSkillDetectionSourceHint,
   getSkillDetectionSourceIcon,
 } from "../shared/skill-source"
-import { runDetectionWithProgress } from "../shared/utils"
+import { readSkillsLock, runDetectionWithProgress } from "../shared/utils"
 import type { ServiceI } from "../service.interface"
 import { theme } from "../../components/theme"
 import type { DetectCommandInput, DetectInput, DetectJson, DetectResult } from "./types"
@@ -21,7 +21,7 @@ export const detectService = {
     //    BEFORE the slower matcher (GitHub fetches) runs.
     onDeps?.(deps)
     // 3. Read skills-lock.json so we can flag already-installed skills.
-    const installedSkills = await matcherService.readSkillsLock(project)
+    const installedSkills = await readSkillsLock(project)
     // 4. Match deps against registry → fetch real skills from GitHub → fall back
     //    to registry-defined skills for sources that returned nothing.
     //    onProgress fires twice: { phase: "github" } then { phase: "fallback" }.

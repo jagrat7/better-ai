@@ -25,9 +25,7 @@ const procedure = t.procedure.use(async ({ getRawInput, next }) => {
   }
   try {
     await assertProjectExists(
-      resolve(
-        (opts?.project as string | undefined) ?? (opts?.path as string | undefined) ?? ".",
-      ),
+      resolve((opts?.project as string | undefined) ?? (opts?.path as string | undefined) ?? "."),
     )
   } catch (error) {
     console.error(pc.red(error instanceof Error ? error.message : String(error)))
@@ -35,7 +33,6 @@ const procedure = t.procedure.use(async ({ getRawInput, next }) => {
   }
   return next()
 })
-
 
 const router = t.router({
   detect: procedure

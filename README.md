@@ -80,12 +80,12 @@ npx bttrai config
 
 ### Commands
 
-| Command           | Description                                                     |
-| ----------------- | -------------------------------------------------------------- |
-| `bttrai`          | Default — detect the project stack and install matching extras |
-| `bttrai detect`   | Detect matching MCP servers and skills, then install them      |
-| `bttrai install`  | Install a package and its matching MCP servers + skills        |
-| `bttrai config`   | Open the config file (creates it if missing) to pin agents     |
+| Command          | Description                                                    |
+| ---------------- | -------------------------------------------------------------- |
+| `bttrai`         | Default — detect the project stack and install matching extras |
+| `bttrai detect`  | Detect matching MCP servers and skills, then install them      |
+| `bttrai install` | Install a package and its matching MCP servers + skills        |
+| `bttrai config`  | Open the config file (creates it if missing) to pin agents     |
 
 ### Options
 
@@ -112,20 +112,20 @@ For `bttrai install`, native package-manager flags (`-D`, `--save-exact`, …) m
 
 By default agents resolve automatically and **nothing about agents is stored**. You only need a config file if you want to pin a fixed set of agents (or, later, define presets). The file lives in your OS user config dir:
 
-| OS      | Path                                            |
-| ------- | ----------------------------------------------- |
-| Linux   | `~/.config/bttrai/config.json`                  |
+| OS      | Path                                               |
+| ------- | -------------------------------------------------- |
+| Linux   | `~/.config/bttrai/config.json`                     |
 | macOS   | `~/Library/Application Support/bttrai/config.json` |
-| Windows | `%APPDATA%\bttrai\config.json`                  |
+| Windows | `%APPDATA%\bttrai\config.json`                     |
 
 Set `BTTRAI_CONFIG` to override the path. Run `bttrai config` to open (and lazily create) it.
 
 ```jsonc
 {
   "autoAgents": true, // resolve agents automatically; `agents` is ignored
-  "agents": [],        // used only when autoAgents:false — bttrai reads, never writes it
-  "editor": "nvim",    // optional — editor for `bttrai config` (wins over $EDITOR)
-  "presets": {}
+  "agents": [], // used only when autoAgents:false — bttrai reads, never writes it
+  "editor": "nvim", // optional — editor for `bttrai config` (wins over $EDITOR)
+  "presets": {},
 }
 ```
 

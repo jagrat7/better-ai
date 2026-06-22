@@ -1,8 +1,21 @@
-import { access, stat } from "node:fs/promises"
+import { access, readFile, stat } from "node:fs/promises"
+import { join } from "node:path"
 import { cancel, isCancel, log, spinner } from "@clack/prompts"
 import pc from "picocolors"
 import { detectService } from "../detect"
 import type { DetectInput, DetectResult } from "../detect/types"
+import type { SkillsLockFile } from "../matcher/types"
+
+/** Reads the project's skills-lock.json to know which skills are already installed. */
+export async function readSkillsLock(project: string): Promise<Set<string>> {
+  try {
+    const raw = await readFile(join(project, "skills-lock.json"), "utf-8")
+    const lock: SkillsLockFile = JSON.parse(raw)
+    return new Set(Object.keys(lock.skills ?? {}))
+  } catch {
+    return new Set()
+  }
+}
 
 // Cheap existence check — true if `path` exists, false otherwise. Shared by the
 // config (agent-marker) and install (package-manager) detection loops.
