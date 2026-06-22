@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dynamic Skill Discovery Plan</title>
+    <style>
+      :root {
+        --bg: #0f1115;
+        --surface: #171a21;
+        --surface-2: #1f242d;
+        --border: #2a313c;
+        --text: #e6e9ef;
+        --muted: #9aa4b2;
+        --accent: #7aa2f7;
+        --accent-soft: #243049;
+        --ok: #9ece6a;
+        --warn: #e0af68;
+        --code-bg: #11141a;
+        --radius: 12px;
+        --maxw: 860px;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font: 15px/1.65 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      main { max-width: var(--maxw); margin: 0 auto; padding: 48px 24px 96px; }
+      nav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 32px; font-size: 13px; }
+      nav a {
+        color: var(--muted); text-decoration: none;
+        border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px;
+      }
+      nav a.active { color: var(--text); border-color: var(--accent); background: var(--accent-soft); }
+      h1 { font-size: 30px; margin: 0 0 8px; letter-spacing: -0.02em; }
+      h2 { font-size: 19px; margin: 40px 0 14px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+      h3 { font-size: 15px; margin: 22px 0 8px; color: var(--accent); }
+      .lede { color: var(--muted); font-size: 16px; margin: 0 0 8px; }
+      code {
+        background: var(--code-bg); border: 1px solid var(--border);
+        border-radius: 6px; padding: 1px 6px; font-size: 13px;
+        font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      }
+      pre {
+        background: var(--code-bg); border: 1px solid var(--border);
+        border-radius: var(--radius); padding: 16px; overflow-x: auto;
+        font-size: 13px; line-height: 1.6;
+        font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      }
+      pre code { background: none; border: none; padding: 0; }
+      table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 14px; }
+      th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+      th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+      .card {
+        background: var(--surface); border: 1px solid var(--border);
+        border-radius: var(--radius); padding: 16px 18px;
+      }
+      .card.files code { display: inline-block; margin: 2px 0; }
+      .flow { display: grid; gap: 10px; }
+      .flow .step {
+        display: grid; grid-template-columns: 30px 1fr; gap: 12px; align-items: start;
+        background: var(--surface); border: 1px solid var(--border);
+        border-radius: 10px; padding: 12px 14px;
+      }
+      .flow .n {
+        width: 28px; height: 28px; border-radius: 8px;
+        background: var(--accent-soft); color: var(--accent);
+        display: grid; place-items: center; font-size: 13px; font-weight: 700;
+      }
+      .flow .step b { color: var(--text); }
+      .flow .step span { color: var(--muted); }
+      ol.steps { counter-reset: step; list-style: none; padding: 0; }
+      ol.steps > li { position: relative; padding: 12px 0 12px 44px; border-bottom: 1px solid var(--border); }
+      ol.steps > li::before {
+        counter-increment: step; content: counter(step);
+        position: absolute; left: 0; top: 12px; width: 28px; height: 28px; border-radius: 8px;
+        background: var(--accent-soft); color: var(--accent);
+        display: grid; place-items: center; font-size: 13px; font-weight: 700;
+      }
+      .note {
+        background: var(--surface-2); border-left: 3px solid var(--accent);
+        border-radius: 0 8px 8px 0; padding: 10px 14px; margin: 14px 0; color: var(--muted);
+      }
+      .note.warn { border-left-color: var(--warn); }
+      footer { margin-top: 56px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--border); padding-top: 16px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <nav>
+        <a href="detect-command-plan.html">1 · Detect Command</a>
+        <a href="install-package-plan.html">2 · Install Package</a>
+        <a href="config-plan.html">3 · Config</a>
+        <a href="preset-plan.html">4 · Preset</a>
+        <a class="active" href="dynamic-discovery-plan.html">5 · Dynamic Discovery</a>
+      </nav>
+
+      <h1>Dynamic Skill Discovery Plan</h1>
+      <p class="lede">Find skills for packages that are <strong>not</strong> in the static registry, so <code>bttrai install &lt;pkg&gt;</code> works for any package — not just the hand-curated list in <code>src/registry/skills.ts</code>.</p>
+
+      <h2>Problem</h2>
+      <p>Today skill resolution is a <strong>closed registry</strong>. <code>matchSkills</code> only iterates the static <code>skills</code> array filtered by <code>when.deps</code>. A package not listed there matches nothing, and the package install prints <code>"No extras found"</code>. The org list in <code>src/registry/orgs.ts</code> (<code>OFFICIAL_ORGS</code>) is never imported — it does not drive any lookup.</p>
+      <p>Repo names are not derivable from the package: <code>neondatabase/agent-skills</code> vs <code>clerk/skills</code> vs <code>mapbox/mapbox-agent-skills</code>. And the npm scope is not always the GitHub org (<code>ai</code> → <code>vercel-labs</code>). So resolution must be done live, not computed.</p>
+
+      <h2>Goal</h2>
+      <p>For deps unmatched by the static registry, resolve a GitHub repo <strong>at runtime</strong> and reuse the existing <code>discoverRepoSkills</code> tree-scan on it. The static registry stays the fast, authoritative first pass; this is pure fallback.</p>
+
+      <h2>Resolution Order</h2>
+      <p>Per dep, stop at the first strategy that yields a repo containing <code>SKILL.md</code>:</p>
+      <table>
+        <tr><th>#</th><th>Strategy</th><th>Signal</th><th>Wins for</th></tr>
+        <tr><td>0</td><td>Static registry</td><td><code>when.deps</code> match</td><td>curated packages</td></tr>
+        <tr><td>1</td><td>npm repo field</td><td><code>registry.npmjs.org/&lt;pkg&gt;</code> → <code>repository.url</code></td><td>skills in main repo (<code>ai</code> → <code>vercel/ai</code>)</td></tr>
+        <tr><td>2</td><td>GitHub repo search</td><td><code>/search/repositories?q=&lt;pkg&gt; skill</code></td><td>separate skill repos (<code>hono</code> → <code>yusukebe/hono-skill</code>)</td></tr>
+      </table>
+
+      <h2>Flow</h2>
+      <div class="flow">
+        <div class="step"><div class="n">1</div><div><b>Static match first</b> <span>— existing <code>matchSkills</code> path is unchanged; covered deps never hit the network beyond their tree scan.</span></div></div>
+        <div class="step"><div class="n">2</div><div><b>Compute unmatched deps</b> <span>— deps not present in any matched entry's <code>when.deps</code>.</span></div></div>
+        <div class="step"><div class="n">3</div><div><b>npm repo lookup</b> <span>— read <code>repository.url</code>, parse <code>owner/repo</code>, run <code>discoverRepoSkills</code>; keep if it returns skills.</span></div></div>
+        <div class="step"><div class="n">4</div><div><b>GitHub search fallback</b> <span>— top few repo hits, <code>discoverRepoSkills</code> each, keep the first with skills.</span></div></div>
+        <div class="step"><div class="n">5</div><div><b>Emit as github-detected entries</b> <span>— append to <code>matchSkills</code> results with <code>detectionSource: "github"</code>.</span></div></div>
+      </div>
+
+      <h2>Gating: package-install only</h2>
+      <p>The <code>detect</code> flow scans <strong>every</strong> project dep (dozens). Probing all of them would trip GitHub's unauthenticated search limit (~10 req/min) immediately. So discovery is opt-in via a new <code>discover?: boolean</code> on <code>MatcherInput</code>, set <strong>only</strong> by <code>package-install</code>, where the deps are the few packages the user explicitly named.</p>
+
+      <h2>Surface Changes</h2>
+      <table>
+        <tr><th>Where</th><th>Change</th></tr>
+        <tr><td><code>matcher/types.ts</code></td><td>add <code>discover?: boolean</code> to <code>MatcherInput</code></td></tr>
+        <tr><td><code>matcher/index.ts</code></td><td>thread <code>discover</code> into <code>matchSkills</code>; add <code>resolveNpmRepo</code>, <code>searchSkillRepos</code>, <code>resolveDynamicSource</code> methods on <code>matcherService</code></td></tr>
+        <tr><td><code>install/package-install.ts</code></td><td>pass <code>discover: true</code> to <code>matcherService.run</code></td></tr>
+      </table>
+      <p>No new files, no new exported types beyond the one flag. Helpers integrate into <code>matcherService</code> alongside the existing <code>discoverRepoSkills</code>.</p>
+
+      <h2>Method Sketch</h2>
+      <pre><code>resolveNpmRepo(pkg)        -> "owner/repo" | null   // repository.url, parse github
+searchSkillRepos(pkg)      -> string[]              // /search/repositories hits
+resolveDynamicSource(dep)  -> { source, skills } | null
+  // 1. npm repo -> discoverRepoSkills, keep if non-empty
+  // 2. else each search hit -> discoverRepoSkills, keep first non-empty</code></pre>
+
+      <h2>Edge Cases</h2>
+      <ul>
+        <li><strong>Rate limits:</strong> unauthenticated search is ~10/min. Gating to named packages keeps calls to 1–3 per install. Honor a non-OK response by returning <code>[]</code> (silent fallback), same as <code>getRepoSkillPaths</code>.</li>
+        <li><strong>Scoped names:</strong> npm URL takes <code>@scope/name</code> as-is; search query uses the bare last segment to cut noise.</li>
+        <li><strong>repository.url variants:</strong> handle <code>git+https://…/repo.git</code>, <code>git://</code>, <code>git@github.com:owner/repo</code> — single regex, github-only.</li>
+        <li><strong>Dedup:</strong> two deps resolving to the same repo collapse to one entry; reuse the name-dedup already added to <code>discoverRepoSkills</code>.</li>
+        <li><strong>No progress phase:</strong> package-install calls <code>run()</code> without <code>onProgress</code>, so no spinner/UI change needed.</li>
+      </ul>
+
+      <h2>Implementation Steps</h2>
+      <ol class="steps">
+        <li>Add <code>discover?: boolean</code> to <code>MatcherInput</code> in <code>matcher/types.ts</code>.</li>
+        <li>Add <code>resolveNpmRepo</code>, <code>searchSkillRepos</code>, <code>resolveDynamicSource</code> to <code>matcherService</code>.</li>
+        <li>In <code>matchSkills</code>, after static results, when <code>discover</code> is set: compute unmatched deps, resolve each, append github-detected entries (deduped by source).</li>
+        <li>Thread <code>discover</code> from <code>run()</code> into <code>matchSkills</code>.</li>
+        <li>Pass <code>discover: true</code> from <code>package-install.ts</code>.</li>
+      </ol>
+
+      <h2>Files Touched</h2>
+      <div class="card files">
+        <code>src/services/matcher/types.ts</code> &nbsp; <code>src/services/matcher/index.ts</code> &nbsp;
+        <code>src/services/install/package-install.ts</code>
+      </div>
+
+      <div class="note warn">Discovery hits the network per named package. Keep it best-effort: any failed/empty lookup falls through to "no extras", never an error. Never enable it for the full <code>detect</code> scan.</div>
+
+      <h2>Tests</h2>
+      <ul>
+        <li><code>resolveNpmRepo</code> parses github from <code>git+https</code>, <code>git@</code>, and bare <code>https</code> forms; returns null for non-github.</li>
+        <li>npm-repo path wins when the main repo has <code>SKILL.md</code> (<code>ai</code> → <code>vercel/ai</code>).</li>
+        <li>search fallback fires when the main repo has no skills (<code>hono</code> → <code>yusukebe/hono-skill</code>).</li>
+        <li><code>discover: false</code> (detect flow) performs no npm/search calls.</li>
+        <li>Unmatched dep with no resolvable repo yields no entry and no throw.</li>
+      </ul>
+
+      <footer>better-ai · plan 5 · pairs with detect-command-plan.html, install-package-plan.html, config-plan.html, preset-plan.html</footer>
+    </main>
+  </body>
+</html>

@@ -15,9 +15,13 @@ import type {
 // files at the top level instead of under a `skills/` subdirectory. We detect this
 // to relax the path filter for those repos.
 const githubSkillsRepoName = "skills"
+// Optional token lifts both rate-limit buckets: core REST 60→5,000/hr (git/trees)
+// and Search 10→30/min. Falls back to unauthenticated when neither var is set.
+const githubToken = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN
 const githubHeaders = {
   Accept: "application/vnd.github+json",
   "User-Agent": "better-ai",
+  ...(githubToken ? { Authorization: `Bearer ${githubToken}` } : {}),
 }
 
 export const matcherService = {
@@ -77,7 +81,7 @@ export const matcherService = {
   async discoverRepoSkills(repo: string): Promise<Array<{ name: string; path: string }>> {
     const skillPaths = await matcherService.getRepoSkillPaths(repo)
 
-    return Promise.all(
+    const results = await Promise.all(
       skillPaths.map(async (skillPath) => {
         // Fallback used when fetch/parse fails — last path segment is usually
         // close enough to the slug.
@@ -101,6 +105,78 @@ export const matcherService = {
         }
       }),
     )
+
+    // Deduplicate by skill name — repos like stripe/ai mirror the same SKILL.md
+    // under multiple skills/ subdirectories. Paths are sorted alphabetically, so
+    // we keep the first occurrence (path only drives display; --skill uses name).
+    const seen = new Set<string>()
+    return results.filter((r) => {
+      if (seen.has(r.name)) return false
+      seen.add(r.name)
+      return true
+    })
+  },
+  // Resolve an npm package to its GitHub "owner/repo" via the registry's
+  // repository.url field. Used as the first dynamic-discovery signal — works
+  // when a package keeps its skills inside its own source repo (e.g. vercel/ai).
+  // Returns null for missing metadata or non-GitHub repos.
+  async resolveNpmRepo(pkg: string): Promise<string | null> {
+    try {
+      const response = await fetch(`https://registry.npmjs.org/${pkg}`)
+      if (!response.ok) return null
+      const data = (await response.json()) as { repository?: string | { url?: string } }
+      const url = typeof data.repository === "string" ? data.repository : data.repository?.url
+      if (!url) return null
+      // Handle git+https://github.com/owner/repo.git, git://…, and git@github.com:owner/repo.
+      const match = url.match(/github\.com[/:]([^/]+)\/([^/#?]+?)(?:\.git)?(?:[/#?]|$)/)
+      return match ? `${match[1]}/${match[2]}` : null
+    } catch {
+      return null
+    }
+  },
+  // Run a GitHub repo search, tree-scan each hit, and return the first repo that
+  // actually holds a SKILL.md. Shared by the owner-scoped and global search tiers.
+  async resolveFromSearch(
+    query: string,
+    dep: string,
+  ): Promise<{ source: string; dep: string; skills: Array<{ name: string; path: string }> } | null> {
+    try {
+      const response = await fetch(
+        `https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&per_page=5`,
+        { headers: githubHeaders },
+      )
+      if (!response.ok) return null
+      const { items = [] } = (await response.json()) as { items?: Array<{ full_name?: string }> }
+      for (const item of items) {
+        if (!item.full_name) continue
+        const skills = await matcherService.discoverRepoSkills(item.full_name)
+        if (skills.length > 0) return { source: item.full_name, dep, skills }
+      }
+      return null
+    } catch {
+      return null
+    }
+  },
+  // Live resolution for a dep the static registry didn't match, in precision order:
+  //   1. npm repository field — skills in the package's own repo (vercel/ai).
+  //   2. npm owner + `*skill*` repo name — separate skills repo under the SAME
+  //      owner npm reported (@neondatabase/serverless → neondatabase/agent-skills).
+  //   3. global `<pkg> skill` search — skills repo under an unrelated owner
+  //      (hono → yusukebe/hono-skill).
+  // Stops at the first repo that actually holds a SKILL.md.
+  async resolveDynamicSource(
+    dep: string,
+  ): Promise<{ source: string; dep: string; skills: Array<{ name: string; path: string }> } | null> {
+    const npmRepo = await matcherService.resolveNpmRepo(dep)
+    if (npmRepo) {
+      const skills = await matcherService.discoverRepoSkills(npmRepo)
+      if (skills.length > 0) return { source: npmRepo, dep, skills }
+      const owner = npmRepo.split("/")[0]
+      const ownerHit = await matcherService.resolveFromSearch(`user:${owner} skill in:name`, dep)
+      if (ownerHit) return ownerHit
+    }
+    const term = dep.split("/").at(-1) ?? dep
+    return matcherService.resolveFromSearch(`${term} skill`, dep)
   },
   // Filter the static MCP server registry down to entries whose `when` condition
   // is satisfied by the project's deps.
@@ -117,6 +193,7 @@ export const matcherService = {
     deps: Set<string>,
     installedSkills?: Set<string>,
     onProgress?: MatcherInput["onProgress"],
+    discover?: boolean,
   ): Promise<ResolvedSkillEntry[]> {
     // Filter registry entries whose `when` predicate matches the project's deps.
     const matchedEntries = skills.filter((entry) => matches(entry.when, deps))
@@ -154,31 +231,64 @@ export const matcherService = {
 
     // Build the final per-source result: prefer GitHub-discovered skills when
     // available, otherwise use the registry-declared list.
-    return githubResults.map(({ entry, configuredSkills, fetchedSkills, installed }) => {
-      const detectionSource = fetchedSkills.length > 0 ? "github" : "fallback"
-      const resolvedSkills =
-        detectionSource === "github" ? fetchedSkills.map((skill) => skill.name) : configuredSkills
-      const resolvedSkillPaths =
-        detectionSource === "github" ? fetchedSkills.map((skill) => skill.path) : configuredSkills
+    const staticResults: ResolvedSkillEntry[] = githubResults.map(
+      ({ entry, configuredSkills, fetchedSkills, installed }) => {
+        const detectionSource = fetchedSkills.length > 0 ? "github" : "fallback"
+        const resolvedSkills =
+          detectionSource === "github" ? fetchedSkills.map((skill) => skill.name) : configuredSkills
+        const resolvedSkillPaths =
+          detectionSource === "github" ? fetchedSkills.map((skill) => skill.path) : configuredSkills
 
-      return {
-        source: entry.source,
-        label: entry.label,
-        skills: entry.skills,
-        when: entry.when,
-        resolvedSkills,
-        resolvedSkillPaths,
-        detectionSource,
-        installed,
-      }
-    })
+        return {
+          source: entry.source,
+          label: entry.label,
+          skills: entry.skills,
+          when: entry.when,
+          resolvedSkills,
+          resolvedSkillPaths,
+          detectionSource,
+          installed,
+        }
+      },
+    )
+
+    // Opt-in dynamic discovery for deps the static registry didn't cover. Gated
+    // by `discover` (package-install only) — see MatcherInput.
+    if (!discover) return staticResults
+
+    const coveredDeps = new Set(matchedEntries.flatMap((entry) => entry.when.deps))
+    const unmatchedDeps = [...deps].filter((dep) => !coveredDeps.has(dep))
+    const dynamicResolved = await Promise.all(
+      unmatchedDeps.map((dep) => matcherService.resolveDynamicSource(dep)),
+    )
+
+    // Dedup against static sources and across deps that resolve to the same repo.
+    const seenSources = new Set(staticResults.map((result) => result.source))
+    const dynamicResults: ResolvedSkillEntry[] = []
+    for (const resolved of dynamicResolved) {
+      if (!resolved || seenSources.has(resolved.source)) continue
+      seenSources.add(resolved.source)
+      const names = resolved.skills.map((skill) => skill.name)
+      dynamicResults.push({
+        source: resolved.source,
+        label: resolved.dep,
+        skills: names,
+        when: { deps: [resolved.dep] },
+        resolvedSkills: names,
+        resolvedSkillPaths: resolved.skills.map((skill) => skill.path),
+        detectionSource: "github",
+        installed: names.some((name) => installedSkills?.has(name) ?? false),
+      })
+    }
+
+    return [...staticResults, ...dynamicResults]
   },
   // Public entry point: run MCP + skill matching together. MCP matching is synchronous
   // (registry-only) while skill matching is async (involves GitHub fetches).
-  async run({ deps, installedSkills, onProgress }: MatcherInput): Promise<MatcherResult> {
+  async run({ deps, installedSkills, onProgress, discover }: MatcherInput): Promise<MatcherResult> {
     return {
       servers: matcherService.matchMcpServers(deps),
-      skills: await matcherService.matchSkills(deps, installedSkills, onProgress),
+      skills: await matcherService.matchSkills(deps, installedSkills, onProgress, discover),
     }
   },
   json(result: MatcherResult): MatcherJson {

@@ -55,7 +55,10 @@ export class PackageInstallService extends InstallBase {
     // install stays focused on the named packages. Read skills-lock.json so
     // already-installed skills get flagged and de-selected, same as the detect flow.
     const installedSkills = await matcherService.readSkillsLock(project)
-    const matches = await matcherService.run({ deps, installedSkills })
+    // discover: resolve skills for named packages absent from the static registry
+    // (npm repo metadata → GitHub repo search). Safe here — only the few packages
+    // the user explicitly installed are probed.
+    const matches = await matcherService.run({ deps, installedSkills, discover: true })
     const matchedServers = matches.servers.filter((server) => !server.when.deps.includes("*"))
     const matchedSkills = matches.skills.filter((skill) => !skill.when.deps.includes("*"))
 

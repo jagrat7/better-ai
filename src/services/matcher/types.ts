@@ -24,6 +24,11 @@ export type MatcherInput = {
   deps: Set<string>
   installedSkills?: Set<string>
   onProgress?: (progress: MatcherProgress) => void
+  // Opt-in live discovery: deps unmatched by the static registry get resolved
+  // via npm repo metadata → GitHub repo search. Only the package-targeted
+  // install sets this — the detect flow scans every project dep, far too many
+  // to probe without tripping GitHub's unauthenticated rate limit.
+  discover?: boolean
 }
 
 export type MatcherProgress = {
