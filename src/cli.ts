@@ -67,6 +67,28 @@ const router = t.router({
         mcp: input.mcp,
       })
     }),
+  preset: procedure
+    .meta({
+      description: "Install a named preset's MCP servers + skills (no detection)",
+    })
+    .input(
+      installOptions.extend({
+        name: z.string().describe("Preset name defined in config").meta({ positional: true }),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const project = resolve(input.project ?? ".")
+      await install({
+        type: "preset",
+        project,
+        json: input.json,
+        auto: input.auto,
+        agent: input.agent,
+        skills: input.skills,
+        mcp: input.mcp,
+        preset: input.name,
+      })
+    }),
   install: procedure
     .meta({
       description:

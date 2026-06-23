@@ -23,7 +23,6 @@ This initially started because I was too lazy to add individual skills and MCP i
 
 As I was building this, I hope this project will provide a way to **democratize** and **standardize** development with AI. Rather than leaning on a hand-maintained list, `bttrai` runs an exhaustive, freshest-source-first search for the skills your dependencies actually ship. Check out the [contributing guide](.github/CONTRIBUTING.md) for more info.
 
-
 For each dependency, `bttrai` runs a freshest-source-first search — a local `node_modules` scan, then live repo discovery (npm `repository` field and GitHub search), then registry-pinned GitHub fetches, falling back to the hand-maintained registry only when GitHub is unavailable. MCP servers are matched directly against the static registry by your project's dependencies.
 
 ## Usage
@@ -54,9 +53,6 @@ npx bttrai detect --list
 
 # Output JSON for scripts/automation (no execution)
 npx bttrai detect --json
-
-# Layer a preset's extras on top of a detected install
-npx bttrai detect --preset frontend
 ```
 
 ### `install` — add a package and its matching extras
@@ -85,7 +81,7 @@ npx bttrai install ai --auto --agent cursor
 
 ### `preset` — install a named bundle (no detection)
 
-Installs only the MCP servers + skills defined in a [preset](#presets). See also `detect --preset` above to layer one on top of detection.
+Installs only the MCP servers + skills defined in a [preset](#presets) — no stack detection runs.
 
 ```bash
 npx bttrai preset frontend
@@ -110,19 +106,18 @@ npx bttrai config
 
 ### Options
 
-| Option             | Applies to                    | Description                                    |
-| ------------------ | ----------------------------- | ---------------------------------------------- |
-| `<path>`           | `detect`                      | Target a different project directory           |
-| `<name>`           | `preset`                      | Name of a preset defined in config             |
-| `--project <path>` | `install`                     | Target a different project directory           |
-| `--help`           | all                           | Show command usage and available options       |
-| `--list`           | `detect`                      | Print matches only, install nothing            |
-| `--preset <name>`  | `detect`                      | Merge a named preset's extras into the install |
-| `--json`           | `detect`, `install`, `preset` | Output machine-readable JSON (no execution)    |
-| `--auto`           | `detect`, `install`, `preset` | Skip prompts and auto-select detected matches  |
-| `--agent <name>`   | `detect`, `install`, `preset` | Choose one or more agents to install into      |
-| `--skills`         | `detect`, `install`, `preset` | Only include skills                            |
-| `--mcp`            | `detect`, `install`, `preset` | Only include MCP servers                       |
+| Option             | Applies to                    | Description                                   |
+| ------------------ | ----------------------------- | --------------------------------------------- |
+| `<path>`           | `detect`                      | Target a different project directory          |
+| `<name>`           | `preset`                      | Name of a preset defined in config            |
+| `--project <path>` | `install`                     | Target a different project directory          |
+| `--help`           | all                           | Show command usage and available options      |
+| `--list`           | `detect`                      | Print matches only, install nothing           |
+| `--json`           | `detect`, `install`, `preset` | Output machine-readable JSON (no execution)   |
+| `--auto`           | `detect`, `install`, `preset` | Skip prompts and auto-select detected matches |
+| `--agent <name>`   | `detect`, `install`, `preset` | Choose one or more agents to install into     |
+| `--skills`         | `detect`, `install`, `preset` | Only include skills                           |
+| `--mcp`            | `detect`, `install`, `preset` | Only include MCP servers                      |
 
 `detect` takes the project directory as a positional argument (`bttrai ./my-app`); `install` takes it as the `--project` flag, since its positional slot holds the package names.
 
@@ -150,8 +145,9 @@ Set `BTTRAI_CONFIG` to override the path. Run `bttrai config` to open (and lazil
   "editor": "nvim", // optional — editor for `bttrai config` (wins over $EDITOR)
   "presets": {
     "frontend": {
-      "mcp": ["context7", "shadcn"],
-      "skills": ["ai-sdk"],
+      // registry keys/names, OR raw entries (see Presets below)
+      "mcp": ["context7", "shadcn", "https://mcp.sentry.dev/mcp"],
+      "skills": ["ai-sdk", "neondatabase/agent-skills#neon-auth"],
     },
   },
 }
@@ -163,12 +159,16 @@ Agent resolution order: `--agent` (always wins) → `autoAgents ? auto-detect : 
 
 ### Presets
 
-Presets are reusable bundles of MCP servers + skills defined under `presets` in the config. Each preset's `mcp` and `skills` must reference real registry entries (validated on load). Presets do **not** contain agents — those resolve normally.
+Presets are reusable bundles of MCP servers + skills defined under `presets` in the config. `bttrai preset <name>` installs **only** that preset's extras — no detection runs. Presets do **not** contain agents — those resolve normally. It honors `--auto`, `--agent`, `--skills`, and `--mcp`; an unknown preset name fails with a friendly error listing the available presets.
 
-- `bttrai preset <name>` installs **only** that preset's extras — nothing is detected.
-- `bttrai detect --preset <name>` runs detection **and** merges the preset's extras on top, de-duped.
+Each `mcp`/`skills` entry is either a **registry reference** or a **raw entry** used verbatim:
 
-Both honor `--auto`, `--agent`, `--skills`, and `--mcp`. An unknown preset name fails with a friendly error listing the available presets.
+| Field    | Registry reference        | Raw entry                                                                 |
+| -------- | ------------------------- | ------------------------------------------------------------------------- |
+| `mcp`    | a registry key (`shadcn`) | a target URL or command (`https://mcp.sentry.dev/mcp`, `npx -y some-mcp`) |
+| `skills` | a skill name (`ai-sdk`)   | a source repo with explicit skills (`owner/repo#skill-a,skill-b`)         |
+
+A raw `mcp` URL infers its transport (`http`, or `sse` for a `/sse` endpoint) and a name from the host; a raw `skills` source **must** name the skills to install from it (`#skill-a,skill-b`). Registry references are validated against the registry on load; raw entries only need valid shape.
 
 ## Notes
 

@@ -1,5 +1,6 @@
 import { afterEach, expect, mock, spyOn, test } from "bun:test"
 import { detectService } from "../../src/services/detect"
+import type { DetectResult } from "../../src/services/detect/types"
 import { DetectInstallService } from "../../src/services/install/detect-install"
 
 // Keep config resolution hermetic: a missing file makes auto mode fall back to
@@ -10,7 +11,7 @@ afterEach(() => {
   mock.restore()
 })
 
-const detectedResult = {
+const detectedResult: DetectResult = {
   project: "/tmp/project",
   deps: new Set(["next", "ai", "better-auth"]),
   servers: [
@@ -30,6 +31,7 @@ const detectedResult = {
       when: { deps: ["ai"] },
       resolvedSkills: ["ai-sdk"],
       resolvedSkillPaths: ["packages/ai/skills/ai-sdk"],
+      detectionSource: "github",
       installed: false,
     },
   ],

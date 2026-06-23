@@ -1,9 +1,19 @@
-import { log, multiselect } from "@clack/prompts"
+import { log, multiselect, outro, spinner } from "@clack/prompts"
 import pc from "picocolors"
-import { getSkillDetectionSourceIcon, getSkillDetectionSourceKey } from "../shared/skill-source"
+import { detectService } from "../detect"
+import {
+  getSkillDetectionSource,
+  getSkillDetectionSourceIcon,
+  getSkillDetectionSourceKey,
+} from "../shared/skill-source"
 import { promptWithCancel } from "../shared/utils"
 import { configService } from "../config"
-import { agentOptionsWithHints, warnGlobalOnlyAgents } from "./utils"
+import {
+  agentOptionsWithHints,
+  executeInstallations,
+  reportInstallExecution,
+  warnGlobalOnlyAgents,
+} from "./utils"
 import {
   defaultMcpAgents,
   defaultSkillAgents,
@@ -12,7 +22,17 @@ import {
   translateAgents,
 } from "../../registry/agents"
 import type { DetectResult } from "../detect/types"
-import type { InstallResult } from "./types"
+import type { InstallJson, InstallResult } from "./types"
+
+// CLI flags shared by every install flow — the selection pipeline reads these to
+// scope (--mcp/--skills), resolve agents (--agent), and skip prompts (--auto/--json).
+type SelectionFlags = {
+  auto?: boolean
+  json?: boolean
+  agent?: string[]
+  skills?: boolean
+  mcp?: boolean
+}
 
 type SelectionResult = Pick<
   InstallResult,
@@ -273,5 +293,154 @@ export abstract class InstallBase {
       selectedMcpAgents,
       selectedSkillAgents,
     }
+  }
+
+  // Generic install core: given the available servers/skills (as a DetectResult)
+  // and the CLI flags, scope-filter, resolve agents, then auto-select or prompt.
+  // Shared by every flow that feeds this pipeline — detection and presets only
+  // differ in how they produce the servers/skills they pass in.
+  protected async selectFromResult(
+    detected: DetectResult,
+    { auto, json, agent, skills, mcp }: SelectionFlags,
+  ): Promise<InstallResult> {
+    const availableServers = skills && !mcp ? [] : detected.servers
+    const availableSkills = mcp && !skills ? [] : detected.matched
+    const scope = skills && !mcp ? "skills" : mcp && !skills ? "mcp" : "all"
+    const quiet = json === true
+
+    const totalSkillCount = availableSkills.reduce<number>(
+      (sum, s) => sum + s.resolvedSkills.length,
+      0,
+    )
+    const parts = [
+      availableServers.length > 0 && `${pc.bold(availableServers.length.toString())} MCP servers`,
+      totalSkillCount > 0 && `${pc.bold(totalSkillCount.toString())} skills`,
+    ].filter(Boolean)
+
+    if (!quiet && parts.length > 0) {
+      log.info(`Found ${parts.join(" and ")} for ${pc.dim(detected.project)}`)
+    }
+
+    if (availableServers.length === 0 && availableSkills.length === 0) {
+      if (!quiet) {
+        log.warn("No matching MCP servers or skills to install.")
+        outro(pc.dim("Done"))
+      }
+      return {
+        ...detected,
+        selectedServers: [],
+        selectedSkills: [],
+        selectedMcpAgents: [],
+        selectedSkillAgents: [],
+        scope,
+      }
+    }
+
+    const resolvedAgents = await this.resolveInstallAgents({
+      agent,
+      project: detected.project,
+      json,
+      auto,
+      hasServers: availableServers.length > 0,
+      hasSkills: availableSkills.length > 0,
+    })
+
+    if (auto) {
+      if (!resolvedAgents) {
+        // Only reachable when agents are pinned (autoAgents: false) but the list
+        // is empty and no --agent was given — auto mode can't prompt.
+        log.error("No agents to install to. Pass --agent or pin agents via `bttrai config`.")
+        outro(pc.dim("Done"))
+        process.exit(1)
+      }
+      return {
+        ...detected,
+        selectedServers: availableServers,
+        selectedSkills: availableSkills,
+        selectedMcpAgents: resolvedAgents.mcp,
+        selectedSkillAgents: resolvedAgents.skill,
+        scope,
+      }
+    }
+
+    const selection = await this.promptForSelection(
+      { ...detected, servers: availableServers, matched: availableSkills },
+      resolvedAgents,
+    )
+
+    if (!selection) {
+      return {
+        ...detected,
+        selectedServers: [],
+        selectedSkills: [],
+        selectedMcpAgents: [],
+        selectedSkillAgents: [],
+        scope,
+      }
+    }
+
+    return { ...detected, ...selection, scope }
+  }
+
+  json(result: InstallResult): InstallJson {
+    const detected = detectService.json(result)
+
+    return {
+      ...detected,
+      selectedMcpServers: result.selectedServers.map((server) => ({
+        key: server.key,
+        label: server.label,
+        name: server.name,
+      })),
+      selectedSkills: result.selectedSkills.map((skill) => ({
+        source: skill.source,
+        label: skill.label,
+        detectionSource: getSkillDetectionSource(skill),
+        skills: skill.resolvedSkills,
+        skillPaths: skill.resolvedSkillPaths,
+      })),
+    }
+  }
+
+  async command(result: InstallResult): Promise<void> {
+    if (result.selectedServers.length === 0 && result.selectedSkills.length === 0) {
+      const message =
+        result.scope === "skills"
+          ? "No skills selected."
+          : result.scope === "mcp"
+            ? "No MCP servers selected."
+            : "No MCP servers or skills selected."
+      log.warn(message)
+      outro(pc.dim("Done"))
+      return
+    }
+
+    const s = spinner()
+    s.start("Installing selected MCP servers and skills...")
+
+    const execution = await executeInstallations({
+      project: result.project,
+      selectedSkills: result.selectedSkills,
+      selectedServers: result.selectedServers,
+      mcpAgents: result.selectedMcpAgents,
+      skillAgents: result.selectedSkillAgents,
+    })
+
+    s.stop("Installation complete")
+
+    log.info(`Using ${pc.bold(execution.packageManager)} to run installer packages`)
+    if (execution.usedFallback) {
+      log.warn(
+        `Preferred package manager ${pc.bold(execution.preferredPackageManager)} is unavailable, fell back to ${pc.bold(execution.packageManager)}`,
+      )
+    }
+
+    reportInstallExecution(execution)
+
+    if (execution.mcp.installed.length === 0 && execution.skills.installed.length === 0) {
+      throw new Error("Failed to install any selected MCP servers or skills")
+    }
+
+    outro(pc.dim("Done"))
   }
 }

@@ -18,6 +18,13 @@ export type InstallFlags = z.infer<typeof installOptions>
 // the flags come from the shared schema.
 export type InstallInput = DetectInput & Omit<InstallFlags, "project">
 
+// Preset install: a named config preset's mcp/skills, no detection. Shares the
+// install flags but targets a concrete project directory.
+export type PresetInstallInput = InstallFlags & {
+  project: string
+  preset: string
+}
+
 export type InstallResult = DetectResult & {
   selectedServers: DetectResult["servers"]
   selectedSkills: DetectResult["matched"]
@@ -44,3 +51,4 @@ export type PackageInstallInput = InstallFlags & {
 export type InstallDispatchInput =
   | ({ type: "detect" } & InstallInput)
   | ({ type: "package" } & PackageInstallInput)
+  | ({ type: "preset" } & PresetInstallInput)

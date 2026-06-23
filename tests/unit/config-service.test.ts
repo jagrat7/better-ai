@@ -81,6 +81,27 @@ test("validateConfig accepts presets referencing real registry entries", () => {
   expect(result.ok).toBe(true)
 })
 
+test("validateConfig accepts raw MCP targets and raw skill sources with explicit skills", () => {
+  const result = validateConfig({
+    presets: {
+      ops: {
+        mcp: ["https://mcp.sentry.dev/mcp", "npx -y some-mcp"],
+        skills: ["neondatabase/agent-skills#neon-auth"],
+      },
+    },
+  })
+  expect(result.ok).toBe(true)
+})
+
+test("validateConfig rejects a raw skill source that names no skills", () => {
+  const result = validateConfig({
+    presets: { ops: { skills: ["neondatabase/agent-skills"] } },
+  })
+  expect(result.ok).toBe(false)
+  if (result.ok) throw new Error("expected failure")
+  expect(result.errors.some((e) => e.type === "preset")).toBe(true)
+})
+
 test("validateConfig accepts an editor string", () => {
   const result = validateConfig({ editor: "nvim" })
   expect(result.ok).toBe(true)
@@ -89,6 +110,16 @@ test("validateConfig accepts an editor string", () => {
 test("validateConfig rejects a non-string editor", () => {
   const result = validateConfig({ editor: 123 })
   expect(result.ok).toBe(false)
+})
+
+// --- preset resolution -----------------------------------------------------
+
+test("resolvePreset returns the named preset from config", async () => {
+  tempConfig(JSON.stringify({ presets: { frontend: { mcp: ["context7"], skills: ["ai-sdk"] } } }))
+
+  const preset = await configService.resolvePreset("frontend")
+  expect(preset.mcp).toEqual(["context7"])
+  expect(preset.skills).toEqual(["ai-sdk"])
 })
 
 // --- agent translation -----------------------------------------------------

@@ -8,10 +8,19 @@ import {
   packageManagers,
   type PackageManager,
 } from "../../registry/package-managers"
-import type { AgentOption, McpServerEntry } from "../../registry/types"
+import type {
+  AgentOption,
+  McpServerEntry,
+  McpTransport,
+  SkillEntry,
+  WhenCondition,
+} from "../../registry/types"
+import { mcpServers } from "../../registry/mcp-servers"
+import { skills as skillRegistry } from "../../registry/skills"
 import { getSkillDetectionSourceHint } from "../shared/skill-source"
 import { pathExists } from "../shared/utils"
 import type { ResolvedSkillEntry } from "../matcher/types"
+import type { Preset } from "../config/types"
 import { z } from "zod"
 import { installOptions, type InstallFlags } from "./types"
 
@@ -259,6 +268,119 @@ export function reportInstallExecution(execution: InstallExecutionSummary) {
   for (const failure of execution.skills.failed) {
     log.warn(`Failed to install skills from ${pc.bold(failure.item.source)}: ${failure.error}`)
   }
+}
+
+// First registry SkillEntry that owns each skill name, so a preset's flat skill
+// list can be regrouped back into source-keyed install entries. Built once.
+const skillEntryByName = new Map<string, SkillEntry>()
+for (const entry of skillRegistry) {
+  const names = [...entry.skills, ...(entry.conditionalSkills?.flatMap((c) => c.skills) ?? [])]
+  for (const name of names) {
+    if (!skillEntryByName.has(name)) skillEntryByName.set(name, entry)
+  }
+}
+
+const mcpByKey = new Map(mcpServers.map((server) => [server.key, server]))
+
+// A preset mcp string is either a registry key (a plain slug like "context7") or
+// a raw target installed verbatim — a URL or a command (`npx ...`, `@scope/pkg`).
+// Registry keys never carry target syntax, so its presence marks a raw target.
+export function isRawMcpTarget(value: string): boolean {
+  return (
+    value.includes("://") ||
+    value.includes(" ") ||
+    value.startsWith("@") ||
+    value.startsWith("npx") ||
+    value.includes("/")
+  )
+}
+
+// Build an McpServerEntry from a raw target, inferring a name + transport so it
+// drops into the same `add-mcp` command a registry entry would.
+function rawMcpEntry(target: string): McpServerEntry {
+  if (target.includes("://")) {
+    const url = new URL(target)
+    const name =
+      url.hostname.split(".").find((part) => !["mcp", "www", "api"].includes(part)) ?? url.hostname
+    const transport: McpTransport = url.pathname.endsWith("/sse") ? "sse" : "http"
+    return { key: target, label: name, name, target, transport, when: { deps: [] } }
+  }
+  // Command (stdio) form: name from the first package-like token, scope/version stripped.
+  const token =
+    target.split(/\s+/).find((part) => part && !["npx", "bunx", "-y", "--yes"].includes(part)) ??
+    target
+  const name = token.replace(/^@[^/]+\//, "").replace(/@[^@]*$/, "")
+  return { key: target, label: name, name, target, when: { deps: [] } }
+}
+
+// Parse a raw skill string "owner/repo#skillA,skillB" into a source + the
+// explicit skill names to install from it. Returns null for a plain registry
+// skill name (no "/"). The skills CLI resolves names against the source repo
+// itself, so no in-repo path is needed.
+export function parseRawSkill(value: string): { source: string; names: string[] } | null {
+  if (!value.includes("/")) return null
+  const [source = value, list = ""] = value.split("#")
+  const names = list
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean)
+  return { source, names }
+}
+
+// Turn a preset's mcp + skill entries into the shapes the install pipeline
+// consumes. Each entry is either a registry reference (looked up) or a raw
+// target/source (used verbatim). Preset skills carry the "fallback" detection
+// source since they aren't fetched. Unresolvable entries are skipped
+// (validateConfig rejects them before a preset resolves).
+export function presetToExtras(preset: Preset): {
+  servers: McpServerEntry[]
+  skills: ResolvedSkillEntry[]
+} {
+  const servers: McpServerEntry[] = []
+  const seenServers = new Set<string>()
+  for (const value of preset.mcp ?? []) {
+    const entry = isRawMcpTarget(value) ? rawMcpEntry(value) : mcpByKey.get(value)
+    if (!entry || seenServers.has(entry.key)) continue
+    seenServers.add(entry.key)
+    servers.push(entry)
+  }
+
+  const bySource = new Map<
+    string,
+    { source: string; label: string; skills: string[]; when: WhenCondition; names: string[] }
+  >()
+  for (const value of preset.skills ?? []) {
+    const raw = parseRawSkill(value)
+    const entry = raw ? null : skillEntryByName.get(value)
+    const source = raw ? raw.source : entry?.source
+    if (!source) continue
+    const names = raw ? raw.names : [value]
+    if (names.length === 0) continue
+    const group = bySource.get(source) ?? {
+      source,
+      label: raw ? raw.source : (entry?.label ?? source),
+      skills: raw ? raw.names : (entry?.skills ?? names),
+      when: raw ? { deps: [] } : (entry?.when ?? { deps: [] }),
+      names: [] as string[],
+    }
+    for (const name of names) {
+      if (!group.names.includes(name)) group.names.push(name)
+    }
+    bySource.set(source, group)
+  }
+
+  const skills: ResolvedSkillEntry[] = [...bySource.values()].map((group) => ({
+    source: group.source,
+    label: group.label,
+    skills: group.skills,
+    when: group.when,
+    resolvedSkills: group.names,
+    resolvedSkillPaths: group.names,
+    detectionSource: "fallback",
+    installed: false,
+  }))
+
+  return { servers, skills }
 }
 
 export function agentOptionsWithHints(agents: AgentOption[]) {
