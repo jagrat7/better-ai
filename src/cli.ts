@@ -38,6 +38,7 @@ const router = t.router({
   detect: procedure
     .meta({
       description: "Detect project stack and install matching MCP servers + skills",
+      aliases: { command: ["d"] },
     })
     .input(
       installOptions.extend({
@@ -92,6 +93,7 @@ const router = t.router({
     .meta({
       description:
         "Install package(s) and matching MCP servers + skills. Pass native package-manager flags (e.g. -D) after `--`.",
+      aliases: { command: ["i"] },
     })
     .input(
       installOptions.extend({

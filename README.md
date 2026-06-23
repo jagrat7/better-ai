@@ -94,12 +94,12 @@ npx bttrai detect --json
 
 ### Commands
 
-| Command                | Description                                                |
-| ---------------------- | ---------------------------------------------------------- |
-| `bttrai detect`        | Detect matching MCP servers and skills, then install them  |
-| `bttrai install`       | Install a package and its matching MCP servers + skills        |
-| `bttrai preset <name>` | Install a named preset's MCP servers + skills (no detection)   |
-| `bttrai config`        | Open the config file (creates it if missing) to pin agents     |
+| Command                | Alias        | Description                                                |
+| ---------------------- | ------------ | ---------------------------------------------------------- |
+| `bttrai detect`        | `bttrai d`   | Detect matching MCP servers and skills, then install them  |
+| `bttrai install`       | `bttrai i`   | Install a package and its matching MCP servers + skills        |
+| `bttrai preset <name>` | —            | Install a named preset's MCP servers + skills (no detection)   |
+| `bttrai config`        | —            | Open the config file (creates it if missing) to pin agents     |
 
 ### Options
 
