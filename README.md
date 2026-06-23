@@ -14,7 +14,7 @@
 A CLI that installs and manages your AI dependencies (MCP servers and skills) for your coding agent(s). It uses [skills](https://github.com/vercel-labs/skills) and [add-mcp](https://github.com/neondatabase/add-mcp) CLIs under the hood.
 
 ```bash
-npx bttrai
+npx bttrai detect
 ```
 
 ## Why better-ai
@@ -66,24 +66,24 @@ npx bttrai config
 
 ### `detect` — scan a project and install matches
 
-The default command. Detects your stack and installs every matching MCP server + skill. Currently not as exhaustive as the `install` command, as it only looks for direct matches in the registry. WIP
+Detects your stack and installs every matching MCP server + skill. Currently not as exhaustive as the `install` command, as it only looks for direct matches in the registry. WIP
 
 ```bash
 # Detect and install matches in the current directory
-npx bttrai
+npx bttrai detect
 
 # Run against a different project directory
-npx bttrai ./my-app
+npx bttrai detect ./my-app
 
 # Auto-approve — agents resolve automatically (no --agent needed)
-npx bttrai --auto
+npx bttrai detect --auto
 
 # ...or pin specific agents for this run
-npx bttrai --auto --agent cursor claude-code
+npx bttrai detect --auto --agent cursor claude-code
 
 # Scope which extras get installed
-npx bttrai --skills
-npx bttrai --mcp
+npx bttrai detect --skills
+npx bttrai detect --mcp
 
 # Print matches without installing anything
 npx bttrai detect --list
@@ -94,10 +94,9 @@ npx bttrai detect --json
 
 ### Commands
 
-| Command                | Description                                                    |
-| ---------------------- | -------------------------------------------------------------- |
-| `bttrai`               | Default — detect the project stack and install matching extras |
-| `bttrai detect`        | Detect matching MCP servers and skills, then install them      |
+| Command                | Description                                                |
+| ---------------------- | ---------------------------------------------------------- |
+| `bttrai detect`        | Detect matching MCP servers and skills, then install them  |
 | `bttrai install`       | Install a package and its matching MCP servers + skills        |
 | `bttrai preset <name>` | Install a named preset's MCP servers + skills (no detection)   |
 | `bttrai config`        | Open the config file (creates it if missing) to pin agents     |
@@ -117,7 +116,7 @@ npx bttrai detect --json
 | `--skills`         | `detect`, `install`, `preset` | Only include skills                           |
 | `--mcp`            | `detect`, `install`, `preset` | Only include MCP servers                      |
 
-`detect` takes the project directory as a positional argument (`bttrai ./my-app`); `install` takes it as the `--project` flag, since its positional slot holds the package names.
+`detect` takes the project directory as a positional argument (`bttrai detect ./my-app`); `install` takes it as the `--project` flag, since its positional slot holds the package names.
 
 For `bttrai install`, native package-manager flags (`-D`, `--save-exact`, …) must come **after `--`** — everything past `--` is forwarded verbatim to the detected package manager (`npm install`, `bun add`, `pnpm add`, `yarn add`, `deno add npm:`). Tokens **before** `--` are parsed by bttrai, and the package names are read from them to install matching MCP servers + skills.
 

@@ -38,7 +38,6 @@ const router = t.router({
   detect: procedure
     .meta({
       description: "Detect project stack and install matching MCP servers + skills",
-      default: true,
     })
     .input(
       installOptions.extend({
