@@ -299,7 +299,14 @@ export function isRawMcpTarget(value: string): boolean {
 // drops into the same `add-mcp` command a registry entry would.
 function rawMcpEntry(target: string): McpServerEntry {
   if (target.includes("://")) {
-    const url = new URL(target)
+    let url: URL
+    try {
+      url = new URL(target)
+    } catch {
+      // Fall through to the command (stdio) form if the URL is malformed.
+      const name = target.replace(/^[a-z]+:\/\//, "").split(/[\/:]/)[0] ?? target
+      return { key: target, label: name, name, target, when: { deps: [] } }
+    }
     const name =
       url.hostname.split(".").find((part) => !["mcp", "www", "api"].includes(part)) ?? url.hostname
     const transport: McpTransport = url.pathname.endsWith("/sse") ? "sse" : "http"
