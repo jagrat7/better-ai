@@ -11,7 +11,7 @@
 
 ## Overview
 
-A CLI that auto-installs MCP servers and skills to your agent(s) based on your project's stack. It uses [skills](https://github.com/vercel-labs/skills) and [add-mcp](https://github.com/neondatabase/add-mcp) CLIs under the hood.
+A CLI that installs and manages your AI dependencies (MCP servers and skills) for your coding agent(s). It uses [skills](https://github.com/vercel-labs/skills) and [add-mcp](https://github.com/neondatabase/add-mcp) CLIs under the hood.
 
 ```bash
 npx bttrai
@@ -21,39 +21,9 @@ npx bttrai
 
 This initially started because I was too lazy to add individual skills and MCP installs for my individual projects, and as a result I was unnecessarily inflating my context window (system prompt) by installing everything globally. Research like [this paper](https://arxiv.org/abs/2505.10554) has shown that overloaded system prompts hurt performance. By scoping installs to the project level, `bttrai` keeps your context window lean and relevant.
 
-As I was building this, I hope this project will provide a way to **democratize** and **standardize** development with AI. Rather than leaning on a hand-maintained list, `bttrai` runs an exhaustive, freshest-source-first search for the skills your dependencies actually ship. Check out the [contributing guide](.github/CONTRIBUTING.md) for more info.
-
-For each dependency, `bttrai` runs a freshest-source-first search — a local `node_modules` scan, then live repo discovery (npm `repository` field and GitHub search), then registry-pinned GitHub fetches, falling back to the hand-maintained registry only when GitHub is unavailable. MCP servers are matched directly against the static registry by your project's dependencies.
+`bttrai` runs an exhaustive, freshest-source-first search for the skills your dependencies actually ship. Check out the [contributing guide](.github/CONTRIBUTING.md) for more info. For each dependency, `bttrai` runs a freshest-source-first search — a local `node_modules` scan, then live repo discovery (npm `repository` field and GitHub search), then registry-pinned GitHub fetches, falling back to the [hand-maintained skills registry](src/registry/skills.ts) only when GitHub is unavailable. MCP servers are currently only matched directly against the [static registry](src/registry/mcp-servers.ts), but I have future plans to dynamically discover MCP servers like skills.
 
 ## Usage
-
-### `detect` — scan a project and install matches
-
-The default command. Detects your stack and installs every matching MCP server + skill.
-
-```bash
-# Detect and install matches in the current directory
-npx bttrai
-
-# Run against a different project directory
-npx bttrai ./my-app
-
-# Auto-approve — agents resolve automatically (no --agent needed)
-npx bttrai --auto
-
-# ...or pin specific agents for this run
-npx bttrai --auto --agent cursor claude-code
-
-# Scope which extras get installed
-npx bttrai --skills
-npx bttrai --mcp
-
-# Print matches without installing anything
-npx bttrai detect --list
-
-# Output JSON for scripts/automation (no execution)
-npx bttrai detect --json
-```
 
 ### `install` — add a package and its matching extras
 
@@ -92,6 +62,34 @@ npx bttrai preset frontend
 ```bash
 # Open the config file to pin agents or edit presets
 npx bttrai config
+```
+
+### `detect` — scan a project and install matches
+
+The default command. Detects your stack and installs every matching MCP server + skill. Currently not as exhaustive as the `install` command, as it only looks for direct matches in the registry. WIP
+
+```bash
+# Detect and install matches in the current directory
+npx bttrai
+
+# Run against a different project directory
+npx bttrai ./my-app
+
+# Auto-approve — agents resolve automatically (no --agent needed)
+npx bttrai --auto
+
+# ...or pin specific agents for this run
+npx bttrai --auto --agent cursor claude-code
+
+# Scope which extras get installed
+npx bttrai --skills
+npx bttrai --mcp
+
+# Print matches without installing anything
+npx bttrai detect --list
+
+# Output JSON for scripts/automation (no execution)
+npx bttrai detect --json
 ```
 
 ### Commands
@@ -136,6 +134,9 @@ By default agents resolve automatically and **nothing about agents is stored**. 
 | macOS   | `~/Library/Application Support/bttrai/config.json` |
 | Windows | `%APPDATA%\bttrai\config.json`                     |
 
+> [!NOTE]
+> Only tested on Linux so far.
+
 Set `BTTRAI_CONFIG` to override the path. Run `bttrai config` to open (and lazily create) it.
 
 ```jsonc
@@ -146,8 +147,8 @@ Set `BTTRAI_CONFIG` to override the path. Run `bttrai config` to open (and lazil
   "presets": {
     "frontend": {
       // registry keys/names, OR raw entries (see Presets below)
-      "mcp": ["context7", "shadcn", "https://mcp.sentry.dev/mcp"],
-      "skills": ["ai-sdk", "neondatabase/agent-skills#neon-auth"],
+      "mcp": ["https://mcp.sentry.dev/mcp"],
+      "skills": ["neondatabase/agent-skills#neon-auth"],
     },
   },
 }
@@ -174,14 +175,4 @@ A raw `mcp` URL infers its transport (`http`, or `sse` for a `/sse` endpoint) an
 
 - By default, `bttrai` is intended to install skills and MCPs in your current project/directory.
 - Some agents only have global MCP installations, so in those cases the install may need to be global instead of project-level.
-- There is partial support for Python projects, but it's not fully implmented.
 - If your project prefers `bun`, `pnpm`, `yarn`, or `deno` but that runner is not available, `bttrai` falls back to `npx` automatically.
-
-## Upcoming features
-
-- [ ] Better python support
-- [x] Presets - you can define presets you like, for example a frontend preset with the Shadcn MCP with impeccable and UI/UX pro skill. this would require a global config file for `bttrai`
-- [ ] Detect existing MCPs in your agent
-- [ ] More languages
-- [ ] Maybe a better way to contribute to registries
-- [ ] Skills + CLI alternative to MCPs
