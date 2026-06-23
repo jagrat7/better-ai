@@ -7,9 +7,17 @@ import pc from "picocolors"
 import { canonicalAgentIds, defaultAgents } from "../../registry/agents"
 import { mcpServers } from "../../registry/mcp-servers"
 import { skills as skillEntries } from "../../registry/skills"
+import { isRawMcpTarget, parseRawSkill } from "../install/utils"
 import { pathExists } from "../shared/utils"
 import { configSchema, defaultConfig } from "./types"
-import type { Config, ConfigError, ConfigInput, ConfigValidation, RawConfigFile } from "./types"
+import type {
+  Config,
+  ConfigError,
+  ConfigInput,
+  ConfigValidation,
+  Preset,
+  RawConfigFile,
+} from "./types"
 
 const APP = "bttrai"
 const CONFIG_FILE = "config.json"
@@ -168,19 +176,34 @@ export function validateConfig(raw: unknown): ConfigValidation {
     { mcp?: string[]; skills?: string[] },
   ][]
   for (const [name, preset] of presets) {
-    for (const key of preset.mcp ?? []) {
-      if (!knownMcpKeys.has(key)) {
+    // A registry key (plain slug) must exist; a raw target (URL/command) is used
+    // verbatim and only checked for shape.
+    for (const value of preset.mcp ?? []) {
+      if (isRawMcpTarget(value)) continue
+      if (!knownMcpKeys.has(value)) {
         errors.push({
           type: "preset",
-          message: `Preset "${name}" references unknown MCP server "${key}"`,
+          message: `Preset "${name}" references unknown MCP server "${value}"`,
         })
       }
     }
-    for (const skill of preset.skills ?? []) {
-      if (!knownSkillNames.has(skill)) {
+    // A raw source ("owner/repo#skill") must name explicit skills; a plain name
+    // must exist in the registry.
+    for (const value of preset.skills ?? []) {
+      const raw = parseRawSkill(value)
+      if (raw) {
+        if (raw.names.length === 0) {
+          errors.push({
+            type: "preset",
+            message: `Preset "${name}" skill "${value}" must name skills, e.g. "${raw.source}#skill-name"`,
+          })
+        }
+        continue
+      }
+      if (!knownSkillNames.has(value)) {
         errors.push({
           type: "preset",
-          message: `Preset "${name}" references unknown skill "${skill}"`,
+          message: `Preset "${name}" references unknown skill "${value}"`,
         })
       }
     }
@@ -274,4 +297,31 @@ export async function resolveConfig({ json }: ConfigInput = {}): Promise<Config>
   if (validation.ok) return validation.config
 
   return handleInvalidConfig(validation.errors, path, { json })
+}
+
+// Resolve a preset by name from the (validated) config. An unknown name is a
+// friendly error: TTY logs and points at `bttrai config`; JSON/non-TTY emits a
+// structured error. Either way the process exits non-zero. Because the config
+// already passed validateConfig, a resolved preset's mcp/skill references are
+// known-good registry entries.
+export async function resolvePreset(name: string, { json }: ConfigInput = {}): Promise<Preset> {
+  const config = await resolveConfig({ json })
+  const preset = config.presets[name]
+  if (preset) return preset
+
+  const path = getConfigPath()
+  const available = Object.keys(config.presets)
+  const hint =
+    available.length > 0 ? `Available presets: ${available.join(", ")}` : "No presets are defined."
+  const message = `Unknown preset "${name}". ${hint}`
+
+  if (json) {
+    console.log(JSON.stringify({ ok: false, path, presetError: message }, null, 2))
+  } else if (!process.stdout.isTTY) {
+    console.error(pc.red(message))
+  } else {
+    log.error(message)
+    log.info(`Define it under "presets" in ${pc.dim(path)} (run \`bttrai config\`).`)
+  }
+  process.exit(1)
 }

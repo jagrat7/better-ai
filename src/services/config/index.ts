@@ -1,12 +1,19 @@
 import { log, outro } from "@clack/prompts"
 import pc from "picocolors"
-import { defaultConfig, type ConfigInput, type ConfigJson, type ConfigResult } from "./types"
+import {
+  defaultConfig,
+  type ConfigInput,
+  type ConfigJson,
+  type ConfigResult,
+  type Preset,
+} from "./types"
 import {
   autoDetectAgents,
   getConfigPath,
   openInEditor,
   readConfigFile,
   resolveConfig,
+  resolvePreset,
   writeConfig,
 } from "./utils"
 
@@ -65,5 +72,11 @@ export const configService = {
     const config = await resolveConfig({ json })
     if (config.autoAgents) return autoDetectAgents(project)
     return config.agents.length > 0 ? config.agents : null
+  },
+
+  // Resolve a named preset (validated against config). Unknown names exit with a
+  // friendly error — see resolvePreset.
+  async resolvePreset(name: string, { json }: ConfigInput = {}): Promise<Preset> {
+    return resolvePreset(name, { json })
   },
 }
