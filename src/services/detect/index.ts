@@ -7,16 +7,42 @@ import {
   getSkillDetectionSourceHint,
   getSkillDetectionSourceIcon,
 } from "../shared/skill-source"
-import { readSkillsLock, runDetectionWithProgress } from "../shared/utils"
+import { readSkillsLock } from "../shared/utils"
 import type { ServiceI } from "../service.interface"
 import { theme } from "../../components/theme"
-import type { DetectCommandInput, DetectInput, DetectJson, DetectResult } from "./types"
+import type { DetectInput, DetectJson, DetectResult } from "./types"
 
 export const detectService = {
+  // The `detect` positional is overloaded: a path-like value (`./app`, `/abs`,
+  // `~/x`, `.`) selects the project directory, anything else (`zod`, `@scope/pkg`)
+  // is a single dependency to target. Explicit `--project` / `--dep` flags win.
+  // npm scoped names start with `@`, so they never collide with the path prefixes.
+  interpretTarget(opts: { project?: unknown; dep?: unknown; target?: unknown }): {
+    project: string
+    dep?: string
+  } {
+    const target = typeof opts.target === "string" ? opts.target : undefined
+    const pathLike = target !== undefined && /^[.~/]/.test(target)
+    return {
+      project: (opts.project as string | undefined) ?? (pathLike ? target : undefined) ?? ".",
+      dep: (opts.dep as string | undefined) ?? (pathLike ? undefined : target),
+    }
+  },
   // Core detection pipeline. Pure data flow — no UI/spinner concerns live here.
-  async run({ project, onDeps, onProgress }: DetectInput): Promise<DetectResult> {
+  async run({ project, dep, onDeps, onProgress }: DetectInput): Promise<DetectResult> {
     // 1. Scan the project for dependencies (package.json, requirements.txt, etc).
-    const deps = await detectDeps(project)
+    //    When a single `dep` is targeted, keep only that one — and require it to
+    //    actually be a project dependency so we never probe arbitrary names.
+    const scanned = await detectDeps(project)
+    let deps = scanned
+    if (dep) {
+      if (!scanned.has(dep)) {
+        throw new Error(
+          `Dependency ${pc.bold(dep)} is not declared in ${pc.dim(project)} — add it before detecting its skills.`,
+        )
+      }
+      deps = new Set([dep])
+    }
     // 2. Notify the caller as soon as deps are known so it can render "Found N deps"
     //    BEFORE the slower matcher (GitHub fetches) runs.
     onDeps?.(deps)
@@ -26,8 +52,15 @@ export const detectService = {
     //    deps against registry → fetch real skills from GitHub → fall back to
     //    registry-defined skills for sources that returned nothing. onProgress
     //    fires { phase: "local" }, { phase: "github" }, then { phase: "fallback" }.
-    //    discover stays off here — too many deps for GitHub's Search quota.
-    const matches = await matcherService.run({ deps, installedSkills, onProgress, project })
+    //    A whole-project scan keeps discover off (too many deps for GitHub's
+    //    Search quota); a single targeted dep opts in — one probe is affordable.
+    const matches = await matcherService.run({
+      deps,
+      installedSkills,
+      onProgress,
+      project,
+      discover: Boolean(dep),
+    })
 
     return {
       project,
@@ -92,17 +125,9 @@ export const detectService = {
 
     outro(pc.dim("Done"))
   },
-} satisfies ServiceI<DetectInput, DetectResult, DetectJson>
-
-// CLI entrypoint for `detect`. Wraps the service with progress UX and chooses
-// between JSON output and a human-readable summary.
-export async function detect({ json, ...input }: DetectCommandInput) {
-  const result = await runDetectionWithProgress(input, { quiet: json })
-
-  if (json) {
-    console.log(JSON.stringify(detectService.json(result), null, 2))
-    return
+} satisfies ServiceI<DetectInput, DetectResult, DetectJson> & {
+  interpretTarget(opts: { project?: unknown; dep?: unknown; target?: unknown }): {
+    project: string
+    dep?: string
   }
-
-  detectService.command(result)
 }

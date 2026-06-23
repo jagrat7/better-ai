@@ -5,12 +5,12 @@ import { createCli, type TrpcCliMeta } from "trpc-cli"
 import { z } from "zod"
 import pc from "picocolors"
 import { resolve } from "path"
-import { detect } from "./services/detect"
+import { detectService } from "./services/detect"
 import { install } from "./services/install"
 import { configService } from "./services/config"
 import { installOptions } from "./services/install/types"
 import { hoistInstallFlags } from "./services/install/utils"
-import { assertProjectExists } from "./services/shared/utils"
+import { assertProjectExists, runDetectionWithProgress } from "./services/shared/utils"
 import { renderHeader } from "./components/header"
 
 const t = initTRPC.meta<TrpcCliMeta>().create()
@@ -24,9 +24,7 @@ const procedure = t.procedure.use(async ({ getRawInput, next }) => {
     console.error(renderHeader())
   }
   try {
-    await assertProjectExists(
-      resolve((opts?.project as string | undefined) ?? (opts?.path as string | undefined) ?? "."),
-    )
+    await assertProjectExists(resolve(detectService.interpretTarget(opts ?? {}).project))
   } catch (error) {
     console.error(pc.red(error instanceof Error ? error.message : String(error)))
     process.exit(1)
@@ -42,19 +40,33 @@ const router = t.router({
     })
     .input(
       installOptions.extend({
-        // detect accepts the project positionally (`path`) or via the inherited
-        // `--project` flag; the flag wins when both are given. install keeps
-        // `project` as a flag and uses `packages` for its positional.
-        path: installOptions.shape.project.meta({ positional: true }),
+        // One overloaded positional: a path-like value (`./app`, `.`) is the
+        // project dir, anything else (`zod`) is a single dependency to target —
+        // see detectService.interpretTarget. The --project / --dep flags override it.
+        target: z
+          .string()
+          .optional()
+          .describe("Project path (./app) or a single dependency name (zod) to detect")
+          .meta({ positional: true }),
         list: z.boolean().optional().describe("Print matches only, install nothing"),
+        dep: z
+          .string()
+          .optional()
+          .describe("Detect skills for a single project dependency instead of the whole stack"),
       }),
     )
     .mutation(async ({ input }) => {
-      const project = resolve(input.project ?? input.path ?? ".")
+      const { project: projectInput, dep } = detectService.interpretTarget(input)
+      const project = resolve(projectInput)
       // Read-only modes: --list always prints, --json without --auto prints matches
       // without executing. Both skip the interactive install flow entirely.
       if (input.list || (input.json && !input.auto)) {
-        await detect({ project, json: input.json })
+        const result = await runDetectionWithProgress({ project, dep }, { quiet: input.json })
+        if (input.json) {
+          console.log(JSON.stringify(detectService.json(result), null, 2))
+        } else {
+          detectService.command(result)
+        }
         return
       }
       await install({
@@ -65,6 +77,7 @@ const router = t.router({
         agent: input.agent,
         skills: input.skills,
         mcp: input.mcp,
+        dep,
       })
     }),
   preset: procedure

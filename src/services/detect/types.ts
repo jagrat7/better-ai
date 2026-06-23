@@ -3,12 +3,11 @@ import type { McpServerJson, SkillJson } from "../shared/types"
 
 export type DetectInput = {
   project: string
+  // When set, restrict detection to this single project dependency and opt into
+  // live discovery (npm + GitHub) — affordable for one dep, unlike a full scan.
+  dep?: string
   onDeps?: (deps: Set<string>) => void
   onProgress?: (progress: MatcherProgress) => void
-}
-
-export type DetectCommandInput = DetectInput & {
-  json?: boolean
 }
 
 export type DetectResult = {
