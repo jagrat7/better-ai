@@ -1,5 +1,6 @@
 import { log, outro } from "@clack/prompts"
 import pc from "picocolors"
+import pkg from "../../../package.json"
 import { detectDeps } from "./utils"
 import { matcherService } from "../matcher"
 import {
@@ -30,19 +31,10 @@ export const detectService = {
   },
   // Core detection pipeline. Pure data flow — no UI/spinner concerns live here.
   async run({ project, dep, onDeps, onProgress }: DetectInput): Promise<DetectResult> {
-    // 1. Scan the project for dependencies (package.json, requirements.txt, etc).
-    //    When a single `dep` is targeted, keep only that one — and require it to
-    //    actually be a project dependency so we never probe arbitrary names.
-    const scanned = await detectDeps(project)
-    let deps = scanned
-    if (dep) {
-      if (!scanned.has(dep)) {
-        throw new Error(
-          `Dependency ${pc.bold(dep)} is not declared in ${pc.dim(project)} — add it before detecting its skills.`,
-        )
-      }
-      deps = new Set([dep])
-    }
+    // 1. A single targeted `dep` is fetched directly — no package.json needed,
+    //    it doesn't have to be installed. Otherwise scan the project for its
+    //    dependencies (package.json, requirements.txt, etc).
+    const deps = dep ? new Set([dep]) : await detectDeps(project)
     // 2. Notify the caller as soon as deps are known so it can render "Found N deps"
     //    BEFORE the slower matcher (GitHub fetches) runs.
     onDeps?.(deps)
@@ -125,9 +117,20 @@ export const detectService = {
 
     outro(pc.dim("Done"))
   },
+  // `--print` mode: a match can span many skills across many sources, so instead
+  // of dumping all that content inline we emit one runnable `print` command per
+  // skill. An agent reads the list and runs whichever it wants — see printService.
+  printCommands(result: DetectResult): void {
+    for (const skill of result.matched) {
+      for (const name of skill.resolvedSkills) {
+        console.log(`npx ${pkg.name} print ${skill.source} ${name}`)
+      }
+    }
+  },
 } satisfies ServiceI<DetectInput, DetectResult, DetectJson> & {
   interpretTarget(opts: { project?: unknown; dep?: unknown; target?: unknown }): {
     project: string
     dep?: string
   }
+  printCommands(result: DetectResult): void
 }

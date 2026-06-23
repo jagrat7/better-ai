@@ -128,6 +128,22 @@ export function matches(when: WhenCondition, deps: Set<string>): boolean {
   return when.deps.includes("*") || when.deps.some((d) => deps.has(d))
 }
 /**
+ * Fetch a single file's contents from a repo via raw.githubusercontent.com — a
+ * CDN with no auth rate limits, unlike api.github.com. Shared by SKILL.md name
+ * parsing (discovery) and the `print` command's on-demand file fetch.
+ * @returns The file text, or null when missing / unreadable.
+ */
+export async function fetchRawFile(repo: string, filePath: string): Promise<string | null> {
+  try {
+    const response = await fetch(`https://raw.githubusercontent.com/${repo}/HEAD/${filePath}`)
+    if (!response.ok) return null
+    return await response.text()
+  } catch {
+    return null
+  }
+}
+
+/**
  * Discovers every folder containing a SKILL.md in a GitHub repo via one
  * recursive git-tree API call (single request regardless of repo size).
  * @returns Directory paths (relative to repo root) — not slugs.
@@ -186,17 +202,11 @@ export async function discoverRepoSkills(
       // Fallback used when fetch/parse fails — last path segment is usually
       // close enough to the slug.
       const folderName = skillPath.slice(skillPath.lastIndexOf("/") + 1)
-      try {
-        // raw.githubusercontent.com is a CDN with no auth rate limits, unlike
-        // api.github.com. Safe to call once per discovered skill.
-        const response = await fetch(
-          `https://raw.githubusercontent.com/${repo}/HEAD/${skillPath}/SKILL.md`,
-        )
-        if (!response.ok) return { name: folderName, path: skillPath }
-        const text = await response.text()
-        return { name: parseSkillName(text, folderName), path: skillPath }
-      } catch {
-        return { name: folderName, path: skillPath }
+      // Safe to call once per discovered skill — raw CDN, no auth rate limit.
+      const text = await fetchRawFile(repo, `${skillPath}/SKILL.md`)
+      return {
+        name: text === null ? folderName : parseSkillName(text, folderName),
+        path: skillPath,
       }
     }),
   )

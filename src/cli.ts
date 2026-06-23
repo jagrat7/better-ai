@@ -6,6 +6,7 @@ import { z } from "zod"
 import pc from "picocolors"
 import { resolve } from "path"
 import { detectService } from "./services/detect"
+import { printService } from "./services/print"
 import { install } from "./services/install"
 import { configService } from "./services/config"
 import { installOptions } from "./services/install/types"
@@ -49,6 +50,10 @@ const router = t.router({
           .describe("Project path (./app) or a single dependency name (zod) to detect")
           .meta({ positional: true }),
         list: z.boolean().optional().describe("Print matches only, install nothing"),
+        print: z
+          .boolean()
+          .optional()
+          .describe("Emit a runnable `print` command per matched skill (for agents), install nothing"),
         dep: z
           .string()
           .optional()
@@ -58,6 +63,13 @@ const router = t.router({
     .mutation(async ({ input }) => {
       const { project: projectInput, dep } = detectService.interpretTarget(input)
       const project = resolve(projectInput)
+      // --print: emit the `print` commands for each matched skill and stop. Quiet
+      // detection keeps stdout to just the commands so an agent can run them.
+      if (input.print) {
+        const result = await runDetectionWithProgress({ project, dep }, { quiet: true })
+        detectService.printCommands(result)
+        return
+      }
       // Read-only modes: --list always prints, --json without --auto prints matches
       // without executing. Both skip the interactive install flow entirely.
       if (input.list || (input.json && !input.auto)) {
@@ -136,6 +148,41 @@ const router = t.router({
         json: input.json ?? hoisted.json,
       })
     }),
+  // No project-assert middleware: `print` fetches a skill from its remote source
+  // and dumps it to stdout — it operates on a repo, not a project directory.
+  print: t.procedure
+    .meta({
+      description:
+        "Print a skill's SKILL.md (or a specific reference file) from its source repo",
+      aliases: { command: ["p"] },
+    })
+    .input(
+      z.object({
+        source: z
+          .string()
+          .describe("Skill source repo, owner/repo (e.g. vercel/ai)")
+          .meta({ positional: true }),
+        skill: z.string().describe("Skill name to print (e.g. ai-sdk)").meta({ positional: true }),
+        file: z
+          .string()
+          .optional()
+          .describe("A file within the skill to print, relative to its folder (default: SKILL.md)")
+          .meta({ positional: true }),
+        json: z.boolean().optional().describe("Output as JSON"),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const result = await printService.run({
+        source: input.source,
+        skill: input.skill,
+        file: input.file,
+      })
+      if (input.json) {
+        console.log(JSON.stringify(printService.json(result), null, 2))
+        return
+      }
+      printService.command(result)
+    }),
   // No project-assert middleware: `bttrai config` operates on the user config
   // file, not a project directory.
   config: t.procedure
@@ -153,6 +200,7 @@ const router = t.router({
       }
       await configService.command(result)
     }),
+
 })
 
 const cli = createCli({
