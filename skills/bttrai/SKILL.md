@@ -1,6 +1,6 @@
 ---
 name: bttrai
-description: How to use bttrai to detect, print, and install AI skills and MCP servers for your project
+description: How to use bttrai to detect, print, and install AI skills and MCP servers for your project. Yout AI dependencies manger
 ---
 
 # bttrai — AI dependency manager
@@ -32,7 +32,7 @@ Detects dependencies already in the project and installs matching extras. **This
 npx bttrai detect zod        # recommended: matches for one dependency
 npx bttrai detect --dep zod  # same, explicit flag
 npx bttrai detect            # full-stack scan (WIP — may miss matches)
-npx bttrai detect --list     # inspect matches without installing
+npx bttrai detect ai --print    # print matches without installing
 ```
 
 ## `print` — fetch a skill file from its source repo
