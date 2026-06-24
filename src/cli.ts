@@ -154,7 +154,7 @@ const router = t.router({
     .meta({
       description:
         "Print a skill's SKILL.md (or a specific reference file) from its source repo",
-      aliases: { command: ["p"] },
+      aliases: { command: ["prs"] },
     })
     .input(
       z.object({
