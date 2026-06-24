@@ -88,8 +88,29 @@ npx bttrai detect --mcp
 # Print matches without installing anything
 npx bttrai detect --list
 
+# Emit a runnable `print` command per matched skill (for agents)
+npx bttrai detect --print
+
+# Detect skills for a single dependency instead of the whole stack
+npx bttrai detect --dep zod
+
 # Output JSON for scripts/automation (no execution)
 npx bttrai detect --json
+```
+
+### `print` — fetch a skill's SKILL.md (or a reference file) from its source
+
+Print a skill straight to stdout so an agent can read it into context without installing anything. The default is the skill's `SKILL.md`; pass a file path to fetch a specific reference within the skill.
+
+```bash
+# Print a skill's SKILL.md from its source repo (owner/repo + skill name)
+npx bttrai print vercel/ai ai-sdk
+
+# Print a specific reference file within the skill
+npx bttrai print vercel/ai ai-sdk references/common-errors.md
+
+# Machine-readable output
+npx bttrai print vercel/ai ai-sdk --json
 ```
 
 ### Commands
@@ -98,6 +119,7 @@ npx bttrai detect --json
 | ---------------------- | ------------ | ---------------------------------------------------------- |
 | `bttrai detect`        | `bttrai d`   | Detect matching MCP servers and skills, then install them  |
 | `bttrai install`       | `bttrai i`   | Install a package and its matching MCP servers + skills        |
+| `bttrai print`         | `bttrai prs` | Print a skill's SKILL.md (or a reference file) from its source  |
 | `bttrai preset <name>` | —            | Install a named preset's MCP servers + skills (no detection)   |
 | `bttrai config`        | —            | Open the config file (creates it if missing) to pin agents     |
 
@@ -109,8 +131,11 @@ npx bttrai detect --json
 | `<name>`           | `preset`                      | Name of a preset defined in config            |
 | `--project <path>` | `install`                     | Target a different project directory          |
 | `--help`           | all                           | Show command usage and available options      |
+| `<source> <skill> [file]` | `print`                | Source repo, skill name, optional file (default SKILL.md) |
 | `--list`           | `detect`                      | Print matches only, install nothing           |
-| `--json`           | `detect`, `install`, `preset` | Output machine-readable JSON (no execution)   |
+| `--print`          | `detect`                      | Emit a runnable `print` command per matched skill |
+| `--dep <name>`     | `detect`                      | Detect skills for a single dependency         |
+| `--json`           | `detect`, `print`, `install`, `preset` | Output machine-readable JSON (no execution) |
 | `--auto`           | `detect`, `install`, `preset` | Skip prompts and auto-select detected matches |
 | `--agent <name>`   | `detect`, `install`, `preset` | Choose one or more agents to install into     |
 | `--skills`         | `detect`, `install`, `preset` | Only include skills                           |
