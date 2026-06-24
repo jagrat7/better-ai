@@ -14,7 +14,7 @@
 A CLI that installs and manages your AI dependencies (MCP servers and skills) for your coding agent(s). It uses [skills](https://github.com/vercel-labs/skills) and [add-mcp](https://github.com/neondatabase/add-mcp) CLIs under the hood.
 
 ```bash
-npx bttrai detect
+npx bttrai i <package>
 ```
 
 ## Why better-ai
@@ -24,6 +24,16 @@ This initially started because I was too lazy to add individual skills and MCP i
 `bttrai` runs an exhaustive, freshest-source-first search for the skills your dependencies actually ship. Check out the [contributing guide](.github/CONTRIBUTING.md) for more info. For each dependency, `bttrai` runs a freshest-source-first search — a local `node_modules` scan, then live repo discovery (npm `repository` field and GitHub search), then registry-pinned GitHub fetches, falling back to the [hand-maintained skills registry](src/registry/skills.ts) only when GitHub is unavailable. MCP servers are currently only matched directly against the [static registry](src/registry/mcp-servers.ts), but I have future plans to dynamically discover MCP servers like skills.
 
 ## Usage
+
+### Install the `bttrai` skill
+
+Teach your agent to use `bttrai` by installing its skill:
+
+```bash
+npx skills@latest add jagrat7/better-ai --skill bttrai --agent claude-code
+```
+
+Swap `--agent` for your agent (`cursor`, `github-copilot`, `vscode`, …).
 
 ### `install` — add a package and its matching extras
 
