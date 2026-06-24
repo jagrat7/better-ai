@@ -73,12 +73,18 @@ export async function runDetectionWithProgress(
       log.info(`Found ${pc.bold(deps.size.toString())} dependencies in ${pc.dim(input.project)}`)
     },
     // Fires per matcher stage. The detect flow opts into stage 0 (local
-    // node_modules) but never the package-install-only discover stages, so
-    // only local/github/fallback reach here.
+    // node_modules); a single-dep `detect --dep` also opts into the discover
+    // stages, so those can reach here too.
     onProgress: (progress) => {
       switch (progress.phase) {
         case "local":
           if (progress.total > 0) show("Scanning node_modules for skills...")
+          break
+        case "discover":
+          if (progress.total > 0) show("Discovering skills...")
+          break
+        case "discover-step":
+          show(progress.message)
           break
         case "github":
           if (progress.total > 0) show(`Fetching skills from GitHub... (${progress.total} matches)`)

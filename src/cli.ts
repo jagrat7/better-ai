@@ -5,12 +5,13 @@ import { createCli, type TrpcCliMeta } from "trpc-cli"
 import { z } from "zod"
 import pc from "picocolors"
 import { resolve } from "path"
-import { detect } from "./services/detect"
+import { detectService } from "./services/detect"
+import { printService } from "./services/print"
 import { install } from "./services/install"
 import { configService } from "./services/config"
 import { installOptions } from "./services/install/types"
 import { hoistInstallFlags } from "./services/install/utils"
-import { assertProjectExists } from "./services/shared/utils"
+import { assertProjectExists, runDetectionWithProgress } from "./services/shared/utils"
 import { renderHeader } from "./components/header"
 
 const t = initTRPC.meta<TrpcCliMeta>().create()
@@ -24,9 +25,7 @@ const procedure = t.procedure.use(async ({ getRawInput, next }) => {
     console.error(renderHeader())
   }
   try {
-    await assertProjectExists(
-      resolve((opts?.project as string | undefined) ?? (opts?.path as string | undefined) ?? "."),
-    )
+    await assertProjectExists(resolve(detectService.interpretTarget(opts ?? {}).project))
   } catch (error) {
     console.error(pc.red(error instanceof Error ? error.message : String(error)))
     process.exit(1)
@@ -42,19 +41,44 @@ const router = t.router({
     })
     .input(
       installOptions.extend({
-        // detect accepts the project positionally (`path`) or via the inherited
-        // `--project` flag; the flag wins when both are given. install keeps
-        // `project` as a flag and uses `packages` for its positional.
-        path: installOptions.shape.project.meta({ positional: true }),
+        // One overloaded positional: a path-like value (`./app`, `.`) is the
+        // project dir, anything else (`zod`) is a single dependency to target —
+        // see detectService.interpretTarget. The --project / --dep flags override it.
+        target: z
+          .string()
+          .optional()
+          .describe("Project path (./app) or a single dependency name (zod) to detect")
+          .meta({ positional: true }),
         list: z.boolean().optional().describe("Print matches only, install nothing"),
+        print: z
+          .boolean()
+          .optional()
+          .describe("Emit a runnable `print` command per matched skill (for agents), install nothing"),
+        dep: z
+          .string()
+          .optional()
+          .describe("Detect skills for a single project dependency instead of the whole stack"),
       }),
     )
     .mutation(async ({ input }) => {
-      const project = resolve(input.project ?? input.path ?? ".")
+      const { project: projectInput, dep } = detectService.interpretTarget(input)
+      const project = resolve(projectInput)
+      // --print: emit the `print` commands for each matched skill and stop. Quiet
+      // detection keeps stdout to just the commands so an agent can run them.
+      if (input.print) {
+        const result = await runDetectionWithProgress({ project, dep }, { quiet: true })
+        detectService.printCommands(result)
+        return
+      }
       // Read-only modes: --list always prints, --json without --auto prints matches
       // without executing. Both skip the interactive install flow entirely.
       if (input.list || (input.json && !input.auto)) {
-        await detect({ project, json: input.json })
+        const result = await runDetectionWithProgress({ project, dep }, { quiet: input.json })
+        if (input.json) {
+          console.log(JSON.stringify(detectService.json(result), null, 2))
+        } else {
+          detectService.command(result)
+        }
         return
       }
       await install({
@@ -65,6 +89,7 @@ const router = t.router({
         agent: input.agent,
         skills: input.skills,
         mcp: input.mcp,
+        dep,
       })
     }),
   preset: procedure
@@ -123,6 +148,41 @@ const router = t.router({
         json: input.json ?? hoisted.json,
       })
     }),
+  // No project-assert middleware: `print` fetches a skill from its remote source
+  // and dumps it to stdout — it operates on a repo, not a project directory.
+  print: t.procedure
+    .meta({
+      description:
+        "Print a skill's SKILL.md (or a specific reference file) from its source repo",
+      aliases: { command: ["p"] },
+    })
+    .input(
+      z.object({
+        source: z
+          .string()
+          .describe("Skill source repo, owner/repo (e.g. vercel/ai)")
+          .meta({ positional: true }),
+        skill: z.string().describe("Skill name to print (e.g. ai-sdk)").meta({ positional: true }),
+        file: z
+          .string()
+          .optional()
+          .describe("A file within the skill to print, relative to its folder (default: SKILL.md)")
+          .meta({ positional: true }),
+        json: z.boolean().optional().describe("Output as JSON"),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const result = await printService.run({
+        source: input.source,
+        skill: input.skill,
+        file: input.file,
+      })
+      if (input.json) {
+        console.log(JSON.stringify(printService.json(result), null, 2))
+        return
+      }
+      printService.command(result)
+    }),
   // No project-assert middleware: `bttrai config` operates on the user config
   // file, not a project directory.
   config: t.procedure
@@ -140,6 +200,7 @@ const router = t.router({
       }
       await configService.command(result)
     }),
+
 })
 
 const cli = createCli({

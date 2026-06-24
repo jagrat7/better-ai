@@ -1,5 +1,6 @@
 import { log, outro } from "@clack/prompts"
 import pc from "picocolors"
+import pkg from "../../../package.json"
 import { detectDeps } from "./utils"
 import { matcherService } from "../matcher"
 import {
@@ -7,16 +8,33 @@ import {
   getSkillDetectionSourceHint,
   getSkillDetectionSourceIcon,
 } from "../shared/skill-source"
-import { readSkillsLock, runDetectionWithProgress } from "../shared/utils"
+import { readSkillsLock } from "../shared/utils"
 import type { ServiceI } from "../service.interface"
 import { theme } from "../../components/theme"
-import type { DetectCommandInput, DetectInput, DetectJson, DetectResult } from "./types"
+import type { DetectInput, DetectJson, DetectResult } from "./types"
 
 export const detectService = {
+  // The `detect` positional is overloaded: a path-like value (`./app`, `/abs`,
+  // `~/x`, `.`) selects the project directory, anything else (`zod`, `@scope/pkg`)
+  // is a single dependency to target. Explicit `--project` / `--dep` flags win.
+  // npm scoped names start with `@`, so they never collide with the path prefixes.
+  interpretTarget(opts: { project?: unknown; dep?: unknown; target?: unknown }): {
+    project: string
+    dep?: string
+  } {
+    const target = typeof opts.target === "string" ? opts.target : undefined
+    const pathLike = target !== undefined && /^[.~/]/.test(target)
+    return {
+      project: (opts.project as string | undefined) ?? (pathLike ? target : undefined) ?? ".",
+      dep: (opts.dep as string | undefined) ?? (pathLike ? undefined : target),
+    }
+  },
   // Core detection pipeline. Pure data flow — no UI/spinner concerns live here.
-  async run({ project, onDeps, onProgress }: DetectInput): Promise<DetectResult> {
-    // 1. Scan the project for dependencies (package.json, requirements.txt, etc).
-    const deps = await detectDeps(project)
+  async run({ project, dep, onDeps, onProgress }: DetectInput): Promise<DetectResult> {
+    // 1. A single targeted `dep` is fetched directly — no package.json needed,
+    //    it doesn't have to be installed. Otherwise scan the project for its
+    //    dependencies (package.json, requirements.txt, etc).
+    const deps = dep ? new Set([dep]) : await detectDeps(project)
     // 2. Notify the caller as soon as deps are known so it can render "Found N deps"
     //    BEFORE the slower matcher (GitHub fetches) runs.
     onDeps?.(deps)
@@ -26,8 +44,15 @@ export const detectService = {
     //    deps against registry → fetch real skills from GitHub → fall back to
     //    registry-defined skills for sources that returned nothing. onProgress
     //    fires { phase: "local" }, { phase: "github" }, then { phase: "fallback" }.
-    //    discover stays off here — too many deps for GitHub's Search quota.
-    const matches = await matcherService.run({ deps, installedSkills, onProgress, project })
+    //    A whole-project scan keeps discover off (too many deps for GitHub's
+    //    Search quota); a single targeted dep opts in — one probe is affordable.
+    const matches = await matcherService.run({
+      deps,
+      installedSkills,
+      onProgress,
+      project,
+      discover: Boolean(dep),
+    })
 
     return {
       project,
@@ -92,17 +117,20 @@ export const detectService = {
 
     outro(pc.dim("Done"))
   },
-} satisfies ServiceI<DetectInput, DetectResult, DetectJson>
-
-// CLI entrypoint for `detect`. Wraps the service with progress UX and chooses
-// between JSON output and a human-readable summary.
-export async function detect({ json, ...input }: DetectCommandInput) {
-  const result = await runDetectionWithProgress(input, { quiet: json })
-
-  if (json) {
-    console.log(JSON.stringify(detectService.json(result), null, 2))
-    return
+  // `--print` mode: a match can span many skills across many sources, so instead
+  // of dumping all that content inline we emit one runnable `print` command per
+  // skill. An agent reads the list and runs whichever it wants — see printService.
+  printCommands(result: DetectResult): void {
+    for (const skill of result.matched) {
+      for (const name of skill.resolvedSkills) {
+        console.log(`npx ${pkg.name} print ${skill.source} ${name}`)
+      }
+    }
+  },
+} satisfies ServiceI<DetectInput, DetectResult, DetectJson> & {
+  interpretTarget(opts: { project?: unknown; dep?: unknown; target?: unknown }): {
+    project: string
+    dep?: string
   }
-
-  detectService.command(result)
+  printCommands(result: DetectResult): void
 }
