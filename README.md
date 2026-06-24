@@ -25,15 +25,14 @@ This initially started because I was too lazy to add individual skills and MCP i
 
 ## Usage
 
-### Install the `bttrai` skill
 
-Teach your agent to use `bttrai` by installing its skill:
+
+Install the `bttrai` skill:
 
 ```bash
-npx skills@latest add jagrat7/better-ai --skill bttrai --agent claude-code
+npx skills@latest add jagrat7/better-ai 
 ```
 
-Swap `--agent` for your agent (`cursor`, `github-copilot`, `vscode`, …).
 
 ### `install` — add a package and its matching extras
 
